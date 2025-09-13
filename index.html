@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evaluación Diagnóstica - La Salle</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        Chart.defaults.color = '#a3a3a3';
+        Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #001a2e;
+            color: #e5e7eb;
+        }
+        .hidden { display: none; }
+        .modal {
+            display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%;
+            overflow: auto; background-color: rgba(0,0,0,0.7);
+            justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background-color: #00223d;
+            margin: auto; padding: 2rem; border-radius: 0.75rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            max-width: 95%; max-height: 95%; overflow-y: auto;
+            border: 1px solid #003356;
+        }
+        .close-button {
+            color: #a3a3a3; position: absolute; top: 1rem; right: 1rem;
+            font-size: 2rem; font-weight: bold; transition: color 0.2s;
+        }
+        .close-button:hover, .close-button:focus {
+            color: #ffffff; text-decoration: none; cursor: pointer;
+        }
+        .btn-primary {
+            background-color: #003356; color: white; font-weight: 600;
+            padding: 0.75rem 1.5rem; border-radius: 0.5rem; transition: background-color: 0.3s;
+            border: 1px solid #004474;
+        }
+        .btn-primary:hover { background-color: #004474; }
+        .btn-secondary {
+            background-color: transparent; color: #e5e7eb;
+            font-weight: 600; padding: 0.75rem 1.5rem; border-radius: 0.5rem;
+            transition: all 0.3s; border: 1px solid #003356;
+        }
+        .btn-secondary:hover { background-color: #003356; color: white; }
+        /* Estilos para input de búsqueda */
+        input[type="search"] {
+            background-color: #00223d;
+            border-color: #003356;
+            color: #e5e7eb;
+        }
+        input[type="search"]:focus {
+            --tw-ring-color: #36A2EB;
+            border-color: #36A2EB;
+        }
+    </style>
+</head>
+<body class="bg-[#001a2e]">
+
+    <div id="group-cards-view" class="bg-[#00223d] p-10 rounded-xl shadow-2xl w-full max-w-5xl mx-auto my-8">
+        <div class="flex justify-between items-center mb-6 pb-4 border-b border-gray-700">
+            <div class="flex items-center">
+                <img src="https://i.imgur.com/dzDfAiQ.png" alt="Logo La Salle" class="h-16 w-auto mr-4">
+                <h1 id="main-title" class="text-3xl font-bold text-white">Selecciona un Grupo</h1>
+            </div>
+            <a href="login.html" class="btn-primary">Acceso Maestro</a>
+        </div>
+        
+        <div class="mb-8">
+            <input type="search" id="student-search-input" placeholder="Buscar alumno por nombre..." class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-offset-0 focus:ring-offset-transparent transition">
+        </div>
+
+        <div id="group-cards-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        </div>
+        <div id="main-view-buttons" class="flex justify-center mt-10 space-x-4">
+            <button id="show-scales-btn" class="btn-secondary">Ver Baremos</button>
+        </div>
+    </div>
+
+    <div id="student-cards-in-group-view" class="hidden bg-[#00223d] p-10 rounded-xl shadow-2xl w-full max-w-6xl mx-auto my-8">
+        <h1 id="current-group-name" class="text-3xl font-bold text-center text-white mb-8"></h1>
+        <div id="student-cards-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        </div>
+        <button id="back-to-groups-btn" class="w-full mt-10 btn-secondary">Volver a Grupos</button>
+    </div>
+
+    <div id="results-modal" class="modal">
+        <div class="modal-content w-full max-w-3xl relative">
+            <span class="close-button">&times;</span>
+            <h2 id="modal-student-name" class="text-3xl font-bold mb-6 text-center text-white"></h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div id="modal-results-list" class="space-y-4"></div>
+                <div class="w-full h-80 bg-[#001a2e] p-4 rounded-lg shadow-inner">
+                    <canvas id="student-scores-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="scales-modal" class="modal">
+        <div class="modal-content w-full max-w-5xl relative">
+            <span class="close-button">&times;</span>
+            <h2 class="text-3xl font-bold mb-6 text-center text-white">Baremos de Calificación</h2>
+            <div id="scales-modal-content" class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, getDocs, doc, getDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const LA_SALLE_BLUE = '#003356';
+        const __app_id = window.__app_id || 'default-app-id';
+
+        const GRADING_SCALES = {
+            "Velocidad (50 metros planos)": {
+                "M": [{ grade: 10, threshold: 7.0, type: "less_than" }, { grade: 9, threshold: 7.4, type: "less_than_or_equal" }, { grade: 8, threshold: 8.0, type: "less_than_or_equal" }, { grade: 7, threshold: 8.5, type: "less_than_or_equal" }],
+                "F": [{ grade: 10, threshold: 8.0, type: "less_than" }, { grade: 9, threshold: 8.4, type: "less_than_or_equal" }, { grade: 8, threshold: 9.0, type: "less_than_or_equal" }, { grade: 7, threshold: 9.5, type: "less_than_or_equal" }]
+            },
+            "Resistencia": {
+                "M": [{ grade: 10, threshold: 2000, type: "greater_than_or_equal" }, { grade: 9, threshold: 1800, type: "greater_than_or_equal" }, { grade: 8, threshold: 1500, type: "greater_than_or_equal" }, { grade: 7, threshold: 1200, type: "greater_than_or_equal" }],
+                "F": [{ grade: 10, threshold: 1801, type: "greater_than_or_equal" }, { grade: 9, threshold: 1501, type: "greater_than_or_equal" }, { grade: 8, threshold: 1201, type: "greater_than_or_equal" }, { grade: 7, threshold: 1000, type: "greater_than_or_equal" }]
+            },
+            "Salto Vertical": {
+                "M": [{ grade: 10, threshold: 200, type: "greater_than" }, { grade: 9, threshold: 185, type: "greater_than_or_equal" }, { grade: 8, threshold: 170, type: "greater_than_or_equal" }, { grade: 7, threshold: 155, type: "greater_than_or_equal" }],
+                "F": [{ grade: 10, threshold: 165, type: "greater_than" }, { grade: 9, threshold: 150, type: "greater_than_or_equal" }, { grade: 8, threshold: 135, type: "greater_than_or_equal" }, { grade: 7, threshold: 120, type: "greater_than_or_equal" }]
+            },
+            "Salto Horizontal": {
+                "M": [{ grade: 10, threshold: 200, type: "greater_than" }, { grade: 9, threshold: 185, type: "greater_than_or_equal" }, { grade: 8, threshold: 170, type: "greater_than_or_equal" }, { grade: 7, threshold: 155, type: "greater_than_or_equal" }],
+                "F": [{ grade: 10, threshold: 165, type: "greater_than" }, { grade: 9, threshold: 150, type: "greater_than_or_equal" }, { grade: 8, threshold: 135, type: "greater_than_or_equal" }, { grade: 7, threshold: 120, type: "greater_than_or_equal" }]
+            },
+            "Abdominales": {
+                "M": [{ grade: 10, threshold: 40, type: "greater_than" }, { grade: 9, threshold: 35, type: "greater_than_or_equal" }, { grade: 8, threshold: 30, type: "greater_than_or_equal" }, { grade: 7, threshold: 25, type: "greater_than_or_equal" }],
+                "F": [{ grade: 10, threshold: 35, type: "greater_than" }, { grade: 9, threshold: 30, type: "greater_than_or_equal" }, { grade: 8, threshold: 25, type: "greater_than_or_equal" }, { grade: 7, threshold: 20, type: "greater_than_or_equal" }]
+            },
+            "Plancha": {
+                "M": [{ grade: 10, threshold: 90, type: "greater_than" }, { grade: 9, threshold: 75, type: "greater_than_or_equal" }, { grade: 8, threshold: 60, type: "greater_than_or_equal" }, { grade: 7, threshold: 45, type: "greater_than_or_equal" }],
+                "F": [{ grade: 10, threshold: 75, type: "greater_than" }, { grade: 9, threshold: 60, type: "greater_than_or_equal" }, { grade: 8, threshold: 45, type: "greater_than_or_equal" }, { grade: 7, threshold: 30, type: "greater_than_or_equal" }]
+            },
+            "Flexibilidad": {
+                "M": [{ grade: 10, threshold: 20, type: "greater_than" }, { grade: 9, threshold: 10, type: "greater_than" }, { grade: 8, threshold: 0, type: "greater_than" }, { grade: 7, threshold: -8, type: "greater_than" }],
+                "F": [{ grade: 10, threshold: 25, type: "greater_than" }, { grade: 9, threshold: 15, type: "greater_than" }, { grade: 8, threshold: 5, type: "greater_than" }, { grade: 7, threshold: -5, type: "greater_than" }]
+            }
+        };
+
+        const unitMap = {
+            "Velocidad (50 metros planos)": "s", "Resistencia": "m", "Salto Vertical": "cm",
+            "Salto Horizontal": "cm", "Abdominales": "reps", "Plancha": "s", "Flexibilidad": "cm"
+        };
+
+        let app, db;
+        let studentsData = [];
+        const testNames = ['Velocidad (50 metros planos)', 'Resistencia', 'Salto Vertical', 'Salto Horizontal', 'Abdominales', 'Plancha', 'Flexibilidad'];
+
+        const calculateTestScore = (testName, gender, result) => {
+            if (result === null || isNaN(result)) return 0;
+            const score = parseFloat(result);
+            const genderKey = gender && gender.trim().toLowerCase().startsWith('m') ? 'M' : 'F';
+            const scales = GRADING_SCALES[testName];
+            if (!scales) return 0;
+            const genderScales = scales[genderKey];
+            if (!genderScales) return 0;
+            for (const entry of genderScales) {
+                if (entry.type === "less_than" && score < entry.threshold) return entry.grade;
+                if (entry.type === "less_than_or_equal" && score <= entry.threshold) return entry.grade;
+                if (entry.type === "greater_than" && score > entry.threshold) return entry.grade;
+                if (entry.type === "greater_than_or_equal" && score >= entry.threshold) return entry.grade;
+            }
+            return 6;
+        };
+
+        const calculateFinalGrade = (scores) => {
+            const grades = Object.values(scores).filter(g => g >= 6 && g <= 10);
+            if (grades.length === 0) return 0;
+            const sum = grades.reduce((acc, current) => acc + current, 0);
+            return sum / grades.length;
+        };
+
+        const calculateAveragesForSubset = (students) => {
+            const averages = {};
+            testNames.forEach(test => {
+                const scoresForTest = students.map(student => {
+                    const result = student.tests?.[test];
+                    return calculateTestScore(test, student.gender, result);
+                }).filter(score => score > 0);
+
+                if (scoresForTest.length > 0) {
+                    const avg = scoresForTest.reduce((sum, score) => sum + score, 0) / scoresForTest.length;
+                    averages[test] = avg;
+                } else {
+                    averages[test] = 0;
+                }
+            });
+            return averages;
+        };
+
+        const toggleViews = (viewToShow) => {
+            ['group-cards-view', 'student-cards-in-group-view'].forEach(id => {
+                document.getElementById(id).classList.toggle('hidden', id !== viewToShow);
+            });
+        };
+
+        const setupFirebase = async () => {
+            const firebaseConfig = {
+                apiKey: "AIzaSyCIAqDZDZZwWspxNEtzVGd64bSZ0rxO0rs",
+                authDomain: "diagnostico-cd701.firebaseapp.com",
+                databaseURL: "https://diagnostico-cd701-default-rtdb.firebaseio.com",
+                projectId: "diagnostico-cd701",
+                storageBucket: "diagnostico-cd701.firebasestorage.app",
+                messagingSenderId: "372454029287",
+                appId: "1:372454029287:web:ecd8db9ff67dbd961aaf42",
+                measurementId: "G-07LZ996EZ5"
+            };
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                await loadStudents();
+            } catch (error) {
+                console.error("Firebase Init Error:", error);
+            }
+        };
+
+        const loadStudents = async () => {
+            const year = "2025"; // Hardcoded year for public view
+            const studentsRef = collection(db, `/artifacts/${__app_id}/public/data/students`);
+            const studentsSnapshot = await getDocs(studentsRef);
+            
+            const studentPromises = studentsSnapshot.docs.map(async (studentDoc) => {
+                const student = { id: studentDoc.id, ...studentDoc.data() };
+                const resultDocRef = doc(db, `/artifacts/${__app_id}/public/data/students/${student.id}/results/${year}`);
+                const resultDoc = await getDoc(resultDocRef);
+                
+                if (resultDoc.exists()) {
+                    const resultData = resultDoc.data();
+                    student.tests = resultData.tests || {};
+                    student.finalGrade = resultData.finalGrade || 0;
+                    student.observation = resultData.observation || '';
+                } else {
+                    student.tests = {};
+                    student.finalGrade = 0;
+                    student.observation = '';
+                }
+                return student;
+            });
+
+            studentsData = await Promise.all(studentPromises);
+            renderGroupCards();
+        };
+
+        const renderGroupCards = () => {
+            const container = document.getElementById('group-cards-container');
+            container.innerHTML = '';
+            container.classList.remove('lg:grid-cols-4');
+            container.classList.add('lg:grid-cols-3');
+
+            const groups = [...new Set(studentsData.map(s => s.group).filter(Boolean))].sort();
+            groups.forEach(group => {
+                const card = document.createElement('div');
+                card.className = 'bg-[#003356] p-6 rounded-xl shadow-lg cursor-pointer hover:shadow-blue-900/80 hover:-translate-y-1 transition-all';
+                card.innerHTML = `<h3 class="text-2xl font-bold text-center text-white">${group}</h3>`;
+                card.addEventListener('click', () => {
+                    toggleViews('student-cards-in-group-view');
+                    renderStudentCardsInGroup(group);
+                });
+                container.appendChild(card);
+            });
+            document.getElementById('main-title').textContent = 'Selecciona un Grupo';
+            document.getElementById('main-view-buttons').classList.remove('hidden');
+        };
+
+        const renderStudentCards = (container, students) => {
+            container.innerHTML = '';
+            students.forEach(student => {
+                const card = document.createElement('div');
+                card.className = 'bg-[#003356] p-5 rounded-xl shadow-md hover:shadow-lg hover:shadow-blue-900/50 transition-shadow cursor-pointer';
+                card.innerHTML = `
+                    <h3 class="text-lg font-semibold text-white truncate">${student.name || 'N/A'}</h3>
+                    <p class="text-sm text-gray-300">Grupo: ${student.group || 'N/A'}</p>
+                    <p class="text-xl font-bold text-blue-300 mt-2">Final: ${student.finalGrade ? student.finalGrade.toFixed(2) : '-'}</p>
+                `;
+                card.addEventListener('click', () => showStudentModal(student.id));
+                container.appendChild(card);
+            });
+        };
+
+        const renderStudentCardsInGroup = (groupName) => {
+            document.getElementById('current-group-name').textContent = `Alumnos del Grupo: ${groupName}`;
+            const container = document.getElementById('student-cards-container');
+            const studentsInGroup = studentsData.filter(s => s.group === groupName).sort((a, b) => a.name.localeCompare(b.name));
+            renderStudentCards(container, studentsInGroup);
+        };
+
+        const renderGradingScales = () => {
+            const container = document.getElementById('scales-modal-content');
+            container.innerHTML = '';
+            const translations = {
+                "less_than": "Menos de", "less_than_or_equal": "Hasta",
+                "greater_than": "Más de", "greater_than_or_equal": "Desde"
+            };
+            for (const testName in GRADING_SCALES) {
+                const testDiv = document.createElement('div');
+                testDiv.className = 'p-4 bg-[#001a2e] rounded-lg';
+                testDiv.innerHTML = `<h3 class="text-xl font-semibold text-blue-300 mb-3">${testName}</h3>`;
+                const genderDiv = document.createElement('div');
+                genderDiv.className = 'grid grid-cols-2 gap-4';
+                testDiv.appendChild(genderDiv);
+                ["M", "F"].forEach(genderCode => {
+                    const div = document.createElement('div');
+                    div.innerHTML = `<h4 class="text-lg font-semibold text-gray-200 mb-2">${genderCode === 'M' ? 'Masculino' : 'Femenino'}</h4>`;
+                    const list = document.createElement('ul');
+                    list.className = 'list-disc ml-5 text-gray-400 space-y-1';
+                    if (Array.isArray(GRADING_SCALES[testName][genderCode])) {
+                        GRADING_SCALES[testName][genderCode].forEach(scale => {
+                            const translatedType = translations[scale.type] || scale.type.replace('_', ' ');
+                            const unit = unitMap[testName] || '';
+                            list.innerHTML += `<li><b>Cal. ${scale.grade}:</b> ${translatedType} ${scale.threshold}${unit}</li>`;
+                        });
+                    }
+                    div.appendChild(list);
+                    genderDiv.appendChild(div);
+                });
+                container.appendChild(testDiv);
+            }
+        };
+        
+        const showStudentModal = (studentId) => {
+            const student = studentsData.find(s => s.id === studentId);
+            if (!student) return;
+
+            const studentsInSameGroupAndGender = studentsData.filter(s => s.group === student.group && s.gender === student.gender);
+            const genderSpecificAverages = calculateAveragesForSubset(studentsInSameGroupAndGender);
+
+            document.getElementById('modal-student-name').textContent = student.name;
+            const list = document.getElementById('modal-results-list');
+            list.innerHTML = '';
+
+            const studentGrades = {};
+            testNames.forEach(test => {
+                const result = student.tests?.[test];
+                const grade = calculateTestScore(test, student.gender, result);
+                studentGrades[test] = grade;
+                const groupAvg = genderSpecificAverages[test];
+
+                const scoresForTest = studentsInSameGroupAndGender.map(s => ({
+                    id: s.id,
+                    score: calculateTestScore(test, s.gender, s.tests?.[test])
+                })).sort((a, b) => b.score - a.score);
+
+                const rank = scoresForTest.findIndex(s => s.id === student.id) + 1;
+                let medal = '';
+                if (rank === 1 && scoresForTest[0].score > 6) medal = '🥇';
+                else if (rank === 2 && scoresForTest[1]?.score > 6) medal = '🥈';
+                else if (rank === 3 && scoresForTest[2]?.score > 6) medal = '🥉';
+
+                const itemDiv = document.createElement('div');
+                itemDiv.className = "border-b border-gray-700 pb-3";
+                itemDiv.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <span class="font-semibold text-base">${test}</span>
+                        <span class="font-bold text-xl text-blue-300">Cal: ${grade} ${medal}</span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm text-gray-400 mt-1">
+                        <span>Resultado: <strong class="text-gray-200">${result != null ? result + (unitMap[test] || '') : 'N/A'}</strong></span>
+                        <span>Prom. Grupo: <strong class="text-gray-200">${groupAvg ? groupAvg.toFixed(1) : 'N/A'}</strong></span>
+                    </div>
+                `;
+                list.appendChild(itemDiv);
+            });
+            
+            const finalGrade = calculateFinalGrade(studentGrades);
+            const finalP = document.createElement('p');
+            finalP.className = "text-2xl font-bold mt-4 text-center";
+            finalP.innerHTML = `Calificación Final: <span class="text-blue-300">${finalGrade.toFixed(2)}</span>`;
+            list.appendChild(finalP);
+
+            if (student.observation) {
+                const observationDiv = document.createElement('div');
+                observationDiv.className = "mt-6 p-4 bg-gray-800/50 rounded-lg border border-gray-700";
+                observationDiv.innerHTML = `
+                    <h4 class="font-semibold text-lg text-gray-300 mb-2">Observaciones del Maestro</h4>
+                    <p class="text-gray-400 italic">“${student.observation}”</p>
+                `;
+                list.appendChild(observationDiv);
+            }
+
+            const chartCanvas = document.getElementById('student-scores-chart');
+            const existingChart = Chart.getChart(chartCanvas);
+            if (existingChart) existingChart.destroy();
+            
+            const genderLabel = student.gender && student.gender.toLowerCase() === 'female' ? 'Femenino' : 'Masculino';
+
+            new Chart(chartCanvas, {
+                type: 'radar',
+                data: {
+                    labels: testNames,
+                    datasets: [
+                        {
+                            label: 'Calificación Alumno',
+                            data: Object.values(studentGrades),
+                            backgroundColor: 'rgba(54, 162, 235, 0.4)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 2
+                        },
+                        {
+                            label: `Promedio Grupo (${genderLabel})`,
+                            data: Object.values(genderSpecificAverages),
+                            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                            borderColor: 'rgba(255, 255, 255, 0.4)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            beginAtZero: true, max: 10,
+                            angleLines: { color: 'rgba(255, 255, 255, 0.2)' },
+                            grid: { color: 'rgba(255, 255, 255, 0.2)' },
+                            pointLabels: { font: { size: 12 }, color: '#e5e7eb' },
+                            ticks: { backdropColor: '#00223d', color: '#e5e7eb' }
+                        }
+                    },
+                    plugins: { legend: { labels: { color: '#e5e7eb' } } }
+                }
+            });
+
+            document.getElementById('results-modal').style.display = 'flex';
+        };
+        
+        const setupEventListeners = () => {
+            const searchInput = document.getElementById('student-search-input');
+
+            const goBackToGroups = () => {
+                toggleViews('group-cards-view');
+                if(searchInput.value) {
+                    searchInput.value = '';
+                    renderGroupCards();
+                }
+            };
+
+            document.getElementById('back-to-groups-btn').addEventListener('click', goBackToGroups);
+
+            searchInput.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase().trim();
+                const titleElement = document.getElementById('main-title');
+                const container = document.getElementById('group-cards-container');
+                const mainButtons = document.getElementById('main-view-buttons');
+
+                if (searchTerm.length >= 2) {
+                    const filteredStudents = studentsData.filter(student => 
+                        student.name.toLowerCase().includes(searchTerm)
+                    ).sort((a, b) => a.name.localeCompare(b.name));
+                    
+                    container.classList.remove('lg:grid-cols-3');
+                    container.classList.add('sm:grid-cols-2', 'lg:grid-cols-4');
+                    renderStudentCards(container, filteredStudents);
+                    
+                    titleElement.textContent = `${filteredStudents.length} Resultados para "${searchTerm}"`;
+                    mainButtons.classList.add('hidden');
+                } else {
+                    renderGroupCards();
+                }
+            });
+
+            ['results-modal', 'scales-modal'].forEach(id => {
+                const modal = document.getElementById(id);
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal || e.target.classList.contains('close-button')) {
+                        modal.style.display = 'none';
+                    }
+                });
+            });
+
+            document.getElementById('show-scales-btn').addEventListener('click', () => {
+                renderGradingScales();
+                document.getElementById('scales-modal').style.display = 'flex';
+            });
+        };
+
+        (async () => {
+            await setupFirebase();
+            setupEventListeners();
+            toggleViews('group-cards-view');
+        })();
+
+    </script>
+
+</body>
+</html>

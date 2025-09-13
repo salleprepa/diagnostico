@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Evaluación Diagnóstica</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #001a2e; /* Azul La Salle Oscuro */
+        }
+        .btn-primary {
+            background-color: #003356; color: white; font-weight: 600;
+            padding: 0.75rem 1.5rem; border-radius: 0.5rem; transition: background-color 0.3s;
+            border: 1px solid #004474;
+        }
+        .btn-primary:hover { background-color: #004474; }
+        /* Estilos para inputs en modo oscuro */
+        input[type="email"], input[type="password"] {
+            background-color: #00223d;
+            border-color: #003356;
+            color: #e5e7eb;
+        }
+        input:focus {
+            --tw-ring-color: #36A2EB;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen bg-[#001a2e]">
+
+    <div id="notification" class="fixed top-5 left-1/2 -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-lg shadow-xl z-50 transition-all duration-300 opacity-0 transform -translate-y-10"></div>
+
+    <div id="login-view" class="bg-[#00223d] p-10 rounded-xl shadow-2xl w-full max-w-md border border-gray-700">
+        <img src="https://i.imgur.com/dzDfAiQ.png" alt="Logo La Salle" class="mx-auto h-24 w-auto mb-6">
+        <h1 class="text-3xl font-bold text-center text-white mb-2">Panel del Maestro</h1>
+        <p class="text-center text-gray-400 mb-8">Inicia sesión para gestionar tus grupos.</p>
+        <form id="login-form" class="space-y-6">
+            <input type="email" id="email" placeholder="Correo electrónico" required class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-offset-0 focus:ring-offset-transparent focus:border-transparent transition">
+            <input type="password" id="password" placeholder="Contraseña" required class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-offset-0 focus:ring-offset-transparent focus:border-transparent transition">
+            <button type="submit" class="w-full btn-primary py-3">Iniciar Sesión</button>
+        </form>
+         <div class="text-center mt-4">
+            <a href="index.html" class="text-sm text-gray-400 hover:text-white transition">Ir a la vista pública</a>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        const __firebase_config = {
+              apiKey: "AIzaSyCIAqDZDZZwWspxNEtzVGd64bSZ0rxO0rs",
+              authDomain: "diagnostico-cd701.firebaseapp.com",
+              databaseURL: "https://diagnostico-cd701-default-rtdb.firebaseio.com",
+              projectId: "diagnostico-cd701",
+              storageBucket: "diagnostico-cd701.firebasestorage.app",
+              messagingSenderId: "372454029287",
+              appId: "1:372454029287:web:ecd8db9ff67dbd961aaf42",
+              measurementId: "G-07LZ996EZ5"
+            };
+
+        let app, auth;
+
+        const showNotification = (message, isSuccess = true) => {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `fixed top-5 left-1/2 -translate-x-1/2 px-6 py-3 rounded-lg shadow-xl z-50 transition-all duration-300 opacity-100 transform translate-y-0 ${isSuccess ? 'bg-green-500' : 'bg-red-500'} text-white`;
+            setTimeout(() => {
+                notification.className = notification.className.replace('opacity-100 translate-y-0', 'opacity-0 -translate-y-10');
+            }, 3000);
+        };
+
+        const setupFirebase = async () => {
+            try {
+                app = initializeApp(__firebase_config);
+                auth = getAuth(app);
+            } catch (error) {
+                console.error("Firebase Init Error:", error);
+            }
+        };
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                window.location.href = 'admin.html';
+            } catch (error) {
+                console.error("Error de autenticación:", error);
+                showNotification("Error: Correo o contraseña incorrectos.", false);
+            }
+        });
+
+        setupFirebase();
+    </script>
+
+</body>
+</html>
