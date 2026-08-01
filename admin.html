@@ -290,6 +290,7 @@
                             <option value="female">Femenino</option>
                         </select>
                         <button id="apply-report-filters-btn" class="btn-primary text-sm">Aplicar Filtros</button>
+                        <button id="generate-executive-report-btn" class="btn-success text-sm flex items-center gap-2">📄 Reporte Ejecutivo Dirección (PDF)</button>
                     </div>
                 </div>
             </div>
@@ -698,6 +699,9 @@
             const previewTbody = document.getElementById('preview-table-body');
             previewTbody.innerHTML = '';
 
+            let reingresoCount = 0;
+            let newCount = 0;
+
             rows.forEach((row, index) => {
                 // Auto detect column names
                 const keys = Object.keys(row);
@@ -721,7 +725,16 @@
                     gender = 'male';
                 }
 
-                parsedExcelData.push({ name, group: group || 'General', age, gender });
+                // Check if student already exists in Firestore database
+                const existing = studentsData.find(s => s.name && s.name.toLowerCase().trim() === name.toLowerCase().trim());
+                if (existing) reingresoCount++;
+                else newCount++;
+
+                parsedExcelData.push({ name, group: group || 'General', age, gender, isReingreso: !!existing });
+
+                const statusBadge = existing 
+                    ? '<span class="text-xs font-bold px-2 py-0.5 rounded bg-emerald-900/80 text-emerald-300 border border-emerald-500/50">🟢 Reingreso (Histórico)</span>'
+                    : '<span class="text-xs font-bold px-2 py-0.5 rounded bg-blue-900/80 text-blue-300 border border-blue-500/50">✨ Alumno Nuevo</span>';
 
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-[#003356]/40';
@@ -731,14 +744,14 @@
                     <td class="py-2 px-4 text-center">${group || 'General'}</td>
                     <td class="py-2 px-4 text-center">${age}</td>
                     <td class="py-2 px-4 text-center font-bold ${gender === 'female' ? 'text-pink-400' : 'text-blue-400'}">${gender === 'female' ? 'Femenino' : 'Masculino'}</td>
-                    <td class="py-2 px-4 text-center text-xs text-emerald-400 font-semibold">Listo</td>
+                    <td class="py-2 px-4 text-center text-xs">${statusBadge}</td>
                 `;
                 previewTbody.appendChild(tr);
             });
 
-            document.getElementById('preview-count').textContent = parsedExcelData.length;
+            document.getElementById('preview-count').innerHTML = `${parsedExcelData.length} total <span class="text-xs font-normal text-gray-300">(${reingresoCount} reingresos con historial, ${newCount} nuevos)</span>`;
             document.getElementById('upload-preview-container').classList.remove('hidden');
-            showNotification(`Se detectaron ${parsedExcelData.length} alumnos en el archivo.`);
+            showNotification(`Se detectaron ${parsedExcelData.length} alumnos (${reingresoCount} reingresos con historial, ${newCount} nuevos).`);
         };
 
         // CONFIRM IMPORT TO FIRESTORE
@@ -1108,6 +1121,131 @@
             showNotification("Archivo exportado correctamente.", true);
         };
 
+        // EXECUTIVE REPORT FOR DIRECTION
+        const generateExecutiveReport = async () => {
+            showNotification("Generando Reporte Ejecutivo para Dirección...", true);
+            const { jsPDF } = window.jspdf;
+            const year = document.getElementById('year-selector').value;
+            const groupFilter = document.getElementById('report-group-filter').value;
+            const genderFilter = document.getElementById('report-gender-filter').value;
+
+            let filtered = studentsData;
+            if (groupFilter) filtered = filtered.filter(s => s.group === groupFilter);
+            if (genderFilter) filtered = filtered.filter(s => s.gender && s.gender.toLowerCase() === genderFilter.toLowerCase());
+
+            if (filtered.length === 0) {
+                showNotification("No hay alumnos evaluados para generar el reporte.", false);
+                return;
+            }
+
+            const total = filtered.length;
+            const avgGrade = filtered.reduce((sum, s) => sum + (s.finalGrade || 0), 0) / total;
+            const excellentCount = filtered.filter(s => (s.finalGrade || 0) >= 8.0).length;
+            const regularCount = filtered.filter(s => (s.finalGrade || 0) >= 7.0 && (s.finalGrade || 0) < 8.0).length;
+            const supportCount = filtered.filter(s => (s.finalGrade || 0) < 7.0).length;
+
+            const reportElement = document.createElement('div');
+            reportElement.style.position = 'absolute';
+            reportElement.style.left = '-9999px';
+            reportElement.style.width = '210mm';
+            reportElement.style.padding = '15mm';
+            reportElement.style.backgroundColor = 'white';
+            reportElement.style.color = '#111827';
+            reportElement.style.fontFamily = 'Inter, sans-serif';
+
+            let tableRowsHtml = '';
+            filtered.sort((a,b) => (a.name||'').localeCompare(b.name||'')).forEach((s, idx) => {
+                const g = s.finalGrade || 0;
+                let badgeHtml = '';
+                if (g >= 8.0) badgeHtml = '<span style="background: #d1fae5; color: #065f46; font-weight: bold; padding: 2px 8px; border-radius: 4px;">🟢 Excelente</span>';
+                else if (g >= 7.0) badgeHtml = '<span style="background: #fef3c7; color: #92400e; font-weight: bold; padding: 2px 8px; border-radius: 4px;">🟡 Aceptable</span>';
+                else badgeHtml = '<span style="background: #fee2e2; color: #991b1b; font-weight: bold; padding: 2px 8px; border-radius: 4px;">🔴 Requiere Apoyo</span>';
+
+                tableRowsHtml += `
+                    <tr style="border-bottom: 1px solid #e5e7eb; font-size: 11px;">
+                        <td style="padding: 6px; text-align: center;">${idx + 1}</td>
+                        <td style="padding: 6px; font-weight: 600;">${s.name}</td>
+                        <td style="padding: 6px; text-align: center;">${s.group || '-'}</td>
+                        <td style="padding: 6px; text-align: center;">${s.age || '-'} / ${s.gender === 'female' ? 'F' : 'M'}</td>
+                        <td style="padding: 6px; text-align: center; font-weight: bold; font-size: 12px; color: #003356;">${g ? g.toFixed(2) : '-'}</td>
+                        <td style="padding: 6px; text-align: center;">${badgeHtml}</td>
+                        <td style="padding: 6px; font-size: 10px; font-style: italic; color: #4b5563;">${s.observation || '-'}</td>
+                    </tr>
+                `;
+            });
+
+            reportElement.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #003356; padding-bottom: 12px; margin-bottom: 15px;">
+                    <div>
+                        <h1 style="font-size: 22px; font-weight: 800; color: #003356; margin: 0;">REPORTE EJECUTIVO DE EVALUACIÓN DIAGNÓSTICA</h1>
+                        <p style="font-size: 12px; color: #4b5563; margin-top: 4px;">Coordinación de Educación Física • La Salle</p>
+                    </div>
+                    <img src="https://i.imgur.com/dzDfAiQ.png" alt="Logo La Salle" style="height: 55px;">
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 15px; background: #f3f4f6; padding: 10px; border-radius: 8px;">
+                    <div><span style="font-size: 10px; text-transform: uppercase; color: #6b7280; font-weight: bold;">Ciclo Escolar</span><br><strong style="font-size: 14px; color: #003356;">${year}</strong></div>
+                    <div><span style="font-size: 10px; text-transform: uppercase; color: #6b7280; font-weight: bold;">Grupo / Alcance</span><br><strong style="font-size: 14px; color: #003356;">${groupFilter || 'Todos los Grupos'}</strong></div>
+                    <div><span style="font-size: 10px; text-transform: uppercase; color: #6b7280; font-weight: bold;">Total Evaluados</span><br><strong style="font-size: 14px; color: #003356;">${total} Alumnos</strong></div>
+                    <div><span style="font-size: 10px; text-transform: uppercase; color: #6b7280; font-weight: bold;">Promedio General</span><br><strong style="font-size: 14px; color: #10b981;">${avgGrade.toFixed(2)} / 10</strong></div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; text-align: center;">
+                    <div style="border: 1px solid #a7f3d0; background: #ecfdf5; padding: 8px; border-radius: 6px;">
+                        <span style="font-size: 11px; font-weight: bold; color: #065f46;">🟢 Óptimo (>= 8.0)</span>
+                        <div style="font-size: 16px; font-weight: 800; color: #047857;">${excellentCount} (${((excellentCount/total)*100).toFixed(0)}%)</div>
+                    </div>
+                    <div style="border: 1px solid #fde68a; background: #fffbeb; padding: 8px; border-radius: 6px;">
+                        <span style="font-size: 11px; font-weight: bold; color: #92400e;">🟡 Aceptable (7.0 - 7.9)</span>
+                        <div style="font-size: 16px; font-weight: 800; color: #b45309;">${regularCount} (${((regularCount/total)*100).toFixed(0)}%)</div>
+                    </div>
+                    <div style="border: 1px solid #fecaca; background: #fef2f2; padding: 8px; border-radius: 6px;">
+                        <span style="font-size: 11px; font-weight: bold; color: #991b1b;">🔴 Requiere Atención (&lt; 7.0)</span>
+                        <div style="font-size: 16px; font-weight: 800; color: #dc2626;">${supportCount} (${((supportCount/total)*100).toFixed(0)}%)</div>
+                    </div>
+                </div>
+
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px;">
+                    <thead>
+                        <tr style="background-color: #003356; color: white; font-size: 11px; text-transform: uppercase;">
+                            <th style="padding: 6px; text-align: center;">#</th>
+                            <th style="padding: 6px; text-align: left;">Alumno</th>
+                            <th style="padding: 6px; text-align: center;">Grupo</th>
+                            <th style="padding: 6px; text-align: center;">Edad/Sex</th>
+                            <th style="padding: 6px; text-align: center;">Cal. Final</th>
+                            <th style="padding: 6px; text-align: center;">Estado Físico</th>
+                            <th style="padding: 6px; text-align: left;">Observaciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>${tableRowsHtml}</tbody>
+                </table>
+
+                <div style="display: flex; justify-content: space-around; margin-top: 40px; text-align: center; font-size: 11px;">
+                    <div>
+                        <div style="border-bottom: 1px solid #000; width: 180px; margin-bottom: 4px;"></div>
+                        <strong>Profesor de Ed. Física</strong><br>
+                        <span>Firma y Fecha</span>
+                    </div>
+                    <div>
+                        <div style="border-bottom: 1px solid #000; width: 180px; margin-bottom: 4px;"></div>
+                        <strong>Coordinación / Dirección Escolar</strong><br>
+                        <span>Firma y Sello</span>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(reportElement);
+
+            html2canvas(reportElement, { scale: 2 }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+                pdf.addImage(imgData, 'PNG', 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
+                const scopeName = groupFilter ? `_Grupo_${groupFilter}` : '_General';
+                pdf.save(`Reporte_Ejecutivo_Direccion_${year}${scopeName}.pdf`);
+                document.body.removeChild(reportElement);
+                showNotification("Reporte Ejecutivo para Dirección generado con éxito.", true);
+            });
+        };
+
         // SETUP EVENT LISTENERS
         const setupEventListeners = () => {
             document.getElementById('year-selector').addEventListener('change', () => loadStudents());
@@ -1183,8 +1321,9 @@
                 parsedExcelData = [];
             });
 
-            // Report filters
+            // Report filters & Executive Report button
             document.getElementById('apply-report-filters-btn').addEventListener('click', renderReports);
+            document.getElementById('generate-executive-report-btn')?.addEventListener('click', generateExecutiveReport);
 
             // History select
             document.getElementById('history-student-select').addEventListener('change', renderHistoryTab);
