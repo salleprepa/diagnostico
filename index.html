@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evaluación Diagnóstica - La Salle</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        Chart.defaults.color = '#a3a3a3';
+        Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: linear-gradient(135deg, #001220 0%, #001a2e 50%, #002542 100%);
+            color: #e5e7eb;
+            min-height: 100vh;
+        }
+        .glass-panel {
+            background: rgba(0, 34, 61, 0.75);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(0, 68, 116, 0.4);
+        }
+        .modal {
+            display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%;
+            overflow: auto; background-color: rgba(0, 18, 32, 0.85); backdrop-filter: blur(8px);
+            justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background-color: #00223d;
+            margin: auto; padding: 2rem; border-radius: 1rem;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            max-width: 95%; max-height: 95%; overflow-y: auto;
+            border: 1px solid #004474;
+        }
+        .close-button {
+            color: #a3a3a3; position: absolute; top: 1rem; right: 1.25rem;
+            font-size: 2rem; font-weight: bold; transition: color 0.2s;
+        }
+        .close-button:hover { color: #ffffff; cursor: pointer; }
+        .btn-primary {
+            background: linear-gradient(135deg, #003356 0%, #004474 100%);
+            color: white; font-weight: 600;
+            padding: 0.75rem 1.5rem; border-radius: 0.6rem; transition: all 0.25s ease;
+            border: 1px solid #005896;
+            box-shadow: 0 4px 12px rgba(0, 51, 86, 0.3);
+        }
+        .btn-primary:hover { background: linear-gradient(135deg, #004474 0%, #005896 100%); transform: translateY(-1px); }
+        .btn-secondary {
+            background: rgba(0, 51, 86, 0.4); color: #e5e7eb;
+            font-weight: 600; padding: 0.75rem 1.5rem; border-radius: 0.6rem;
+            transition: all 0.25s ease; border: 1px solid #004474;
+        }
+        .btn-secondary:hover { background: #003356; color: white; border-color: #36A2EB; }
+        select, input[type="search"] {
+            background-color: #001220;
+            border-color: #004474;
+            color: #e5e7eb;
+        }
+        select:focus, input:focus {
+            outline: none;
+            border-color: #36A2EB;
+            box-shadow: 0 0 0 2px rgba(54, 162, 235, 0.3);
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <!-- Group Cards View -->
+    <div id="group-cards-view" class="glass-panel p-6 md:p-10 rounded-2xl shadow-2xl w-full max-w-5xl mx-auto my-6 border border-blue-900/40">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-8 pb-6 border-b border-gray-700/80 gap-4">
+            <div class="flex items-center gap-4">
+                <img src="https://i.imgur.com/dzDfAiQ.png" alt="Logo La Salle" class="h-16 w-auto drop-shadow-md">
+                <div>
+                    <h1 id="main-title" class="text-2xl md:text-3xl font-extrabold text-white tracking-tight">Evaluación Diagnóstica Físico-Motriz</h1>
+                    <p class="text-sm text-gray-400 mt-0.5">Consulta de Resultados por Grupo y Alumno</p>
+                </div>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-3">
+                <div class="flex items-center bg-[#001220] p-1.5 rounded-xl border border-gray-700">
+                    <label for="public-year-selector" class="text-xs font-bold text-gray-400 uppercase tracking-wider px-2">Año Escolar:</label>
+                    <select id="public-year-selector" class="px-3 py-1.5 border rounded-lg font-bold text-blue-300 text-sm">
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                        <option value="2026" selected>2026</option>
+                        <option value="2027">2027</option>
+                    </select>
+                </div>
+                <a href="login.html" class="btn-primary text-sm flex items-center gap-2">
+                    <span>🔐</span> Acceso Maestro
+                </a>
+            </div>
+        </div>
+        
+        <div class="mb-8">
+            <input type="search" id="student-search-input" placeholder="🔍 Buscar alumno por nombre..." class="w-full px-5 py-3.5 border rounded-xl text-base focus:ring-2 transition shadow-inner">
+        </div>
+
+        <div id="group-cards-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Group cards dynamically populated -->
+        </div>
+
+        <div id="main-view-buttons" class="flex justify-center mt-10 space-x-4">
+            <button id="show-scales-btn" class="btn-secondary text-sm flex items-center gap-2">
+                <span>📋</span> Ver Baremos de Calificación
+            </button>
+        </div>
+    </div>
+
+    <!-- Student Cards in Group View -->
+    <div id="student-cards-in-group-view" class="hidden glass-panel p-6 md:p-10 rounded-2xl shadow-2xl w-full max-w-6xl mx-auto my-6 border border-blue-900/40">
+        <div class="flex justify-between items-center mb-8 pb-4 border-b border-gray-700">
+            <h1 id="current-group-name" class="text-2xl md:text-3xl font-extrabold text-white"></h1>
+            <button id="back-to-groups-btn" class="btn-secondary text-sm">← Volver a Grupos</button>
+        </div>
+
+        <div id="student-cards-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        </div>
+    </div>
+
+    <!-- Results Modal -->
+    <div id="results-modal" class="modal">
+        <div class="modal-content w-full max-w-4xl relative">
+            <span class="close-button">&times;</span>
+            <h2 id="modal-student-name" class="text-2xl md:text-3xl font-extrabold text-center text-white mb-2"></h2>
+            <p id="modal-student-subtitle" class="text-center text-sm text-gray-400 mb-6"></p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div id="modal-results-list" class="space-y-3"></div>
+                <div class="flex flex-col gap-6">
+                    <div class="w-full h-72 bg-[#001220] p-4 rounded-xl shadow-inner border border-gray-700/60 relative">
+                        <canvas id="student-scores-chart"></canvas>
+                    </div>
+                    <!-- Multi-year evolution container inside modal -->
+                    <div id="modal-history-container" class="hidden bg-[#001220] p-4 rounded-xl border border-gray-700/60">
+                        <h4 class="text-sm font-bold text-emerald-400 mb-2">📈 Evolución Histórica de Calificación Final</h4>
+                        <div class="h-40 relative">
+                            <canvas id="modal-history-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Baremo Scales Modal -->
+    <div id="scales-modal" class="modal">
+        <div class="modal-content w-full max-w-5xl relative">
+            <span class="close-button">&times;</span>
+            <h2 class="text-2xl md:text-3xl font-extrabold mb-6 text-center text-white">Baremos Oficiales de Calificación</h2>
+            <div id="scales-modal-content" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, getDocs, doc, getDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const __app_id = window.__app_id || 'default-app-id';
+        const firebaseConfig = {
+            apiKey: "AIzaSyCIAqDZDZZwWspxNEtzVGd64bSZ0rxO0rs",
+            authDomain: "diagnostico-cd701.firebaseapp.com",
+            databaseURL: "https://diagnostico-cd701-default-rtdb.firebaseio.com",
+            projectId: "diagnostico-cd701",
+            storageBucket: "diagnostico-cd701.firebasestorage.app",
+            messagingSenderId: "372454029287",
+            appId: "1:372454029287:web:ecd8db9ff67dbd961aaf42",
+            measurementId: "G-07LZ996EZ5"
+        };
+
+        const GRADING_SCALES = {
+            "Velocidad (50 metros planos)": {
+                "M": [{ grade: 10, threshold: 7.0, type: "less_than" }, { grade: 9, threshold: 7.4, type: "less_than_or_equal" }, { grade: 8, threshold: 8.0, type: "less_than_or_equal" }, { grade: 7, threshold: 8.5, type: "less_than_or_equal" }],
+                "F": [{ grade: 10, threshold: 8.0, type: "less_than" }, { grade: 9, threshold: 8.4, type: "less_than_or_equal" }, { grade: 8, threshold: 9.0, type: "less_than_or_equal" }, { grade: 7, threshold: 9.5, type: "less_than_or_equal" }]
+            },
+            "Resistencia": {
+                "M": [{ grade: 10, threshold: 2000, type: "greater_than_or_equal" }, { grade: 9, threshold: 1800, type: "greater_than_or_equal" }, { grade: 8, threshold: 1500, type: "greater_than_or_equal" }, { grade: 7, threshold: 1200, type: "greater_than_or_equal" }],
+                "F": [{ grade: 10, threshold: 1801, type: "greater_than_or_equal" }, { grade: 9, threshold: 1501, type: "greater_than_or_equal" }, { grade: 8, threshold: 1201, type: "greater_than_or_equal" }, { grade: 7, threshold: 1000, type: "greater_than_or_equal" }]
+            },
+            "Salto Vertical": {
+                "M": [{ grade: 10, threshold: 49, type: "greater_than" }, { grade: 9, threshold: 45, type: "greater_than_or_equal" }, { grade: 8, threshold: 40, type: "greater_than_or_equal" }, { grade: 7, threshold: 30, type: "greater_than_or_equal" }],
+                "F": [{ grade: 10, threshold: 39, type: "greater_than" }, { grade: 9, threshold: 35, type: "greater_than_or_equal" }, { grade: 8, threshold: 30, type: "greater_than_or_equal" }, { grade: 7, threshold: 25, type: "greater_than_or_equal" }]
+            },
+            "Salto Horizontal": {
+                "M": [{ grade: 10, threshold: 200, type: "greater_than" }, { grade: 9, threshold: 185, type: "greater_than_or_equal" }, { grade: 8, threshold: 170, type: "greater_than_or_equal" }, { grade: 7, threshold: 155, type: "greater_than_or_equal" }],
+                "F": [{ grade: 10, threshold: 165, type: "greater_than" }, { grade: 9, threshold: 150, type: "greater_than_or_equal" }, { grade: 8, threshold: 135, type: "greater_than_or_equal" }, { grade: 7, threshold: 120, type: "greater_than_or_equal" }]
+            },
+            "Abdominales": {
+                "M": [{ grade: 10, threshold: 40, type: "greater_than" }, { grade: 9, threshold: 35, type: "greater_than_or_equal" }, { grade: 8, threshold: 30, type: "greater_than_or_equal" }, { grade: 7, threshold: 25, type: "greater_than_or_equal" }],
+                "F": [{ grade: 10, threshold: 35, type: "greater_than" }, { grade: 9, threshold: 30, type: "greater_than_or_equal" }, { grade: 8, threshold: 25, type: "greater_than_or_equal" }, { grade: 7, threshold: 20, type: "greater_than_or_equal" }]
+            },
+            "Plancha": {
+                "M": [{ grade: 10, threshold: 90, type: "greater_than" }, { grade: 9, threshold: 75, type: "greater_than_or_equal" }, { grade: 8, threshold: 60, type: "greater_than_or_equal" }, { grade: 7, threshold: 45, type: "greater_than_or_equal" }],
+                "F": [{ grade: 10, threshold: 75, type: "greater_than" }, { grade: 9, threshold: 60, type: "greater_than_or_equal" }, { grade: 8, threshold: 45, type: "greater_than_or_equal" }, { grade: 7, threshold: 30, type: "greater_than_or_equal" }]
+            },
+            "Flexibilidad": {
+                "M": [{ grade: 10, threshold: 20, type: "greater_than" }, { grade: 9, threshold: 10, type: "greater_than" }, { grade: 8, threshold: 0, type: "greater_than" }, { grade: 7, threshold: -8, type: "greater_than" }],
+                "F": [{ grade: 10, threshold: 25, type: "greater_than" }, { grade: 9, threshold: 15, type: "greater_than" }, { grade: 8, threshold: 5, type: "greater_than" }, { grade: 7, threshold: -5, type: "greater_than" }]
+            }
+        };
+
+        const unitMap = {
+            "Velocidad (50 metros planos)": "s", "Resistencia": "m", "Salto Vertical": "cm",
+            "Salto Horizontal": "cm", "Abdominales": "reps", "Plancha": "s", "Flexibilidad": "cm"
+        };
+
+        let app, db;
+        let studentsData = [];
+        const testNames = ['Velocidad (50 metros planos)', 'Resistencia', 'Salto Vertical', 'Salto Horizontal', 'Abdominales', 'Plancha', 'Flexibilidad'];
+        let modalHistoryChart;
+
+        const calculateTestScore = (testName, gender, result) => {
+            if (result === null || result === undefined || result === '' || isNaN(result)) return 0;
+            const score = parseFloat(result);
+            const genderKey = gender && gender.trim().toLowerCase().startsWith('m') ? 'M' : 'F';
+            const scales = GRADING_SCALES[testName];
+            if (!scales) return 0;
+            const genderScales = scales[genderKey];
+            if (!genderScales) return 0;
+            for (const entry of genderScales) {
+                if (entry.type === "less_than" && score < entry.threshold) return entry.grade;
+                if (entry.type === "less_than_or_equal" && score <= entry.threshold) return entry.grade;
+                if (entry.type === "greater_than" && score > entry.threshold) return entry.grade;
+                if (entry.type === "greater_than_or_equal" && score >= entry.threshold) return entry.grade;
+            }
+            return 6;
+        };
+
+        const calculateFinalGrade = (scores) => {
+            const grades = Object.values(scores).filter(g => g >= 6 && g <= 10);
+            if (grades.length === 0) return 0;
+            const sum = grades.reduce((acc, current) => acc + current, 0);
+            return sum / grades.length;
+        };
+
+        const toggleViews = (viewToShow) => {
+            ['group-cards-view', 'student-cards-in-group-view'].forEach(id => {
+                document.getElementById(id).classList.toggle('hidden', id !== viewToShow);
+            });
+        };
+
+        const setupFirebase = async () => {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                await loadStudents();
+            } catch (error) {
+                console.error("Firebase Init Error:", error);
+            }
+        };
+
+        const loadStudents = async () => {
+            const year = document.getElementById('public-year-selector').value;
+            const studentsRef = collection(db, `/artifacts/${__app_id}/public/data/students`);
+            const studentsSnapshot = await getDocs(studentsRef);
+            
+            const studentPromises = studentsSnapshot.docs.map(async (studentDoc) => {
+                const student = { id: studentDoc.id, ...studentDoc.data() };
+                const resultDocRef = doc(db, `/artifacts/${__app_id}/public/data/students/${student.id}/results/${year}`);
+                const resultDoc = await getDoc(resultDocRef);
+                
+                if (resultDoc.exists()) {
+                    const resultData = resultDoc.data();
+                    student.tests = resultData.tests || {};
+                    student.finalGrade = resultData.finalGrade || 0;
+                    student.observation = resultData.observation || '';
+                } else {
+                    student.tests = {};
+                    student.finalGrade = 0;
+                    student.observation = '';
+                }
+                return student;
+            });
+
+            studentsData = await Promise.all(studentPromises);
+            renderGroupCards();
+        };
+
+        const renderGroupCards = () => {
+            const container = document.getElementById('group-cards-container');
+            container.innerHTML = '';
+
+            const groups = [...new Set(studentsData.map(s => s.group).filter(Boolean))].sort();
+            if (groups.length === 0) {
+                container.innerHTML = `<p class="text-gray-400 col-span-full text-center py-8">No hay grupos ni alumnos cargados para el ciclo seleccionado.</p>`;
+                return;
+            }
+
+            groups.forEach(group => {
+                const groupStudents = studentsData.filter(s => s.group === group);
+                const evaluatedCount = groupStudents.filter(s => s.finalGrade > 0).length;
+                const card = document.createElement('div');
+                card.className = 'bg-gradient-to-br from-[#003356] to-[#00223d] p-6 rounded-2xl shadow-lg cursor-pointer hover:shadow-blue-900/60 hover:-translate-y-1 transition-all border border-blue-800/40 flex flex-col justify-between';
+                card.innerHTML = `
+                    <div>
+                        <h3 class="text-2xl font-extrabold text-white mb-2">${group}</h3>
+                        <p class="text-xs text-blue-300 font-semibold">${groupStudents.length} Alumnos en total</p>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-gray-700/60 flex justify-between items-center text-xs text-gray-400">
+                        <span>Evaluados: ${evaluatedCount}</span>
+                        <span class="text-blue-400 font-bold">Ver Alumnos →</span>
+                    </div>
+                `;
+                card.addEventListener('click', () => {
+                    toggleViews('student-cards-in-group-view');
+                    renderStudentCardsInGroup(group);
+                });
+                container.appendChild(card);
+            });
+            document.getElementById('main-title').textContent = 'Evaluación Diagnóstica Físico-Motriz';
+            document.getElementById('main-view-buttons').classList.remove('hidden');
+        };
+
+        const renderStudentCards = (container, students) => {
+            container.innerHTML = '';
+            students.forEach(student => {
+                const card = document.createElement('div');
+                card.className = 'bg-[#003356]/80 p-5 rounded-xl shadow-md hover:shadow-xl hover:bg-[#003356] transition-all cursor-pointer border border-blue-800/40 flex flex-col justify-between';
+                card.innerHTML = `
+                    <div>
+                        <h3 class="text-base font-bold text-white truncate">${student.name || 'N/A'}</h3>
+                        <p class="text-xs text-gray-400 mt-0.5">Grupo: ${student.group || 'N/A'}</p>
+                    </div>
+                    <div class="mt-4 flex justify-between items-end">
+                        <div>
+                            <span class="text-[10px] uppercase font-bold text-gray-400 block">Calificación</span>
+                            <span class="text-xl font-extrabold text-blue-300">${student.finalGrade ? student.finalGrade.toFixed(2) : '-'}</span>
+                        </div>
+                        <span class="text-xs text-blue-400 font-semibold">Detalles &gt;</span>
+                    </div>
+                `;
+                card.addEventListener('click', () => showStudentModal(student.id));
+                container.appendChild(card);
+            });
+        };
+
+        const renderStudentCardsInGroup = (groupName) => {
+            document.getElementById('current-group-name').textContent = `Alumnos del Grupo: ${groupName}`;
+            const container = document.getElementById('student-cards-container');
+            const studentsInGroup = studentsData.filter(s => s.group === groupName).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            
+            studentsInGroup.forEach(student => {
+                const studentGrades = {};
+                testNames.forEach(test => {
+                    studentGrades[test] = calculateTestScore(test, student.gender, student.tests?.[test]);
+                });
+                student.finalGrade = calculateFinalGrade(studentGrades);
+            });
+
+            renderStudentCards(container, studentsInGroup);
+        };
+
+        const showStudentModal = async (studentId) => {
+            const student = studentsData.find(s => s.id === studentId);
+            if (!student) return;
+
+            const year = document.getElementById('public-year-selector').value;
+            document.getElementById('modal-student-name').textContent = student.name;
+            document.getElementById('modal-student-subtitle').textContent = `Grupo ${student.group} • ${student.age} años • Ciclo ${year}`;
+
+            const list = document.getElementById('modal-results-list');
+            list.innerHTML = '';
+
+            const studentGrades = {};
+            testNames.forEach(test => {
+                const result = student.tests?.[test];
+                const grade = calculateTestScore(test, student.gender, result);
+                studentGrades[test] = grade;
+
+                const itemDiv = document.createElement('div');
+                itemDiv.className = "bg-[#001220] p-3 rounded-lg border border-gray-700/60 flex justify-between items-center";
+                itemDiv.innerHTML = `
+                    <div>
+                        <p class="font-semibold text-sm text-gray-200">${test}</p>
+                        <p class="text-xs text-gray-400">Marca: <strong class="text-white">${result !== undefined && result !== '' ? result + (unitMap[test] || '') : 'N/A'}</strong></p>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-lg font-bold ${grade >= 8 ? 'text-emerald-400' : grade >= 7 ? 'text-blue-300' : 'text-amber-400'}">${grade > 0 ? grade : '-'}</span>
+                    </div>
+                `;
+                list.appendChild(itemDiv);
+            });
+
+            const finalGrade = calculateFinalGrade(studentGrades);
+            const finalP = document.createElement('div');
+            finalP.className = "mt-4 p-4 bg-gradient-to-r from-blue-900/50 to-blue-800/30 rounded-xl border border-blue-600/40 text-center";
+            finalP.innerHTML = `<span class="text-sm uppercase tracking-wider font-bold text-gray-300 block">Calificación Final</span><span class="text-3xl font-extrabold text-blue-300">${finalGrade ? finalGrade.toFixed(2) : '-'}</span>`;
+            list.appendChild(finalP);
+
+            if (student.observation) {
+                const obsDiv = document.createElement('div');
+                obsDiv.className = "mt-3 p-3 bg-gray-800/40 rounded-lg border border-gray-700 text-xs italic text-gray-300";
+                obsDiv.innerHTML = `“${student.observation}”`;
+                list.appendChild(obsDiv);
+            }
+
+            // Radar Chart
+            const chartCanvas = document.getElementById('student-scores-chart');
+            const existingChart = Chart.getChart(chartCanvas);
+            if (existingChart) existingChart.destroy();
+
+            new Chart(chartCanvas, {
+                type: 'radar',
+                data: {
+                    labels: ['Velocidad', 'Resistencia', 'Salto Vert.', 'Salto Horiz.', 'Abdom.', 'Plancha', 'Flexib.'],
+                    datasets: [{
+                        label: 'Calificación',
+                        data: Object.values(studentGrades),
+                        backgroundColor: 'rgba(54, 162, 235, 0.3)',
+                        borderColor: '#36A2EB',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { r: { beginAtZero: true, max: 10 } }
+                }
+            });
+
+            // Fetch Multi-Year Evolution for this student inside public modal
+            const historyContainer = document.getElementById('modal-history-container');
+            const yearsToFetch = ['2024', '2025', '2026', '2027'];
+            const yearResults = [];
+
+            for (const yr of yearsToFetch) {
+                const resRef = doc(db, `/artifacts/${__app_id}/public/data/students/${studentId}/results/${yr}`);
+                const resSnap = await getDoc(resRef);
+                if (resSnap.exists() && resSnap.data().finalGrade > 0) {
+                    yearResults.push({ year: yr, grade: resSnap.data().finalGrade });
+                }
+            }
+
+            if (yearResults.length > 1) {
+                historyContainer.classList.remove('hidden');
+                const historyCanvas = document.getElementById('modal-history-chart');
+                if (modalHistoryChart) modalHistoryChart.destroy();
+                modalHistoryChart = new Chart(historyCanvas, {
+                    type: 'line',
+                    data: {
+                        labels: yearResults.map(y => y.year),
+                        datasets: [{
+                            label: 'Evolución',
+                            data: yearResults.map(y => y.grade),
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                            fill: true,
+                            tension: 0.3
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        scales: { y: { beginAtZero: true, max: 10 } }
+                    }
+                });
+            } else {
+                historyContainer.classList.add('hidden');
+            }
+
+            document.getElementById('results-modal').style.display = 'flex';
+        };
+
+        const renderGradingScales = () => {
+            const container = document.getElementById('scales-modal-content');
+            container.innerHTML = '';
+            const translations = {
+                "less_than": "Menos de", "less_than_or_equal": "Hasta",
+                "greater_than": "Más de", "greater_than_or_equal": "Desde"
+            };
+            for (const testName in GRADING_SCALES) {
+                const testDiv = document.createElement('div');
+                testDiv.className = 'p-4 bg-[#001220] rounded-xl border border-gray-700/60';
+                testDiv.innerHTML = `<h3 class="text-base font-bold text-blue-300 mb-3">${testName}</h3>`;
+                const genderDiv = document.createElement('div');
+                genderDiv.className = 'grid grid-cols-2 gap-4 text-xs';
+                testDiv.appendChild(genderDiv);
+                ["M", "F"].forEach(genderCode => {
+                    const div = document.createElement('div');
+                    div.innerHTML = `<h4 class="font-bold text-gray-300 mb-1.5">${genderCode === 'M' ? 'Masculino' : 'Femenino'}</h4>`;
+                    const list = document.createElement('ul');
+                    list.className = 'space-y-1 text-gray-400';
+                    if (Array.isArray(GRADING_SCALES[testName][genderCode])) {
+                        GRADING_SCALES[testName][genderCode].forEach(scale => {
+                            const translatedType = translations[scale.type] || scale.type.replace('_', ' ');
+                            const unit = unitMap[testName] || '';
+                            list.innerHTML += `<li><strong class="text-blue-200">Cal. ${scale.grade}:</strong> ${translatedType} ${scale.threshold}${unit}</li>`;
+                        });
+                    }
+                    div.appendChild(list);
+                    genderDiv.appendChild(div);
+                });
+                container.appendChild(testDiv);
+            }
+        };
+
+        const setupEventListeners = () => {
+            document.getElementById('public-year-selector').addEventListener('change', () => loadStudents());
+
+            document.getElementById('back-to-groups-btn').addEventListener('click', () => toggleViews('group-cards-view'));
+
+            const searchInput = document.getElementById('student-search-input');
+            searchInput.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase().trim();
+                const container = document.getElementById('group-cards-container');
+
+                if (searchTerm.length >= 2) {
+                    const filteredStudents = studentsData.filter(student => 
+                        student.name && student.name.toLowerCase().includes(searchTerm)
+                    ).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                    
+                    document.getElementById('main-title').textContent = `${filteredStudents.length} Resultados para "${searchTerm}"`;
+                    renderStudentCards(container, filteredStudents);
+                } else {
+                    renderGroupCards();
+                }
+            });
+
+            ['results-modal', 'scales-modal'].forEach(id => {
+                const modal = document.getElementById(id);
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal || e.target.classList.contains('close-button')) {
+                        modal.style.display = 'none';
+                    }
+                });
+            });
+
+            document.getElementById('show-scales-btn').addEventListener('click', () => {
+                renderGradingScales();
+                document.getElementById('scales-modal').style.display = 'flex';
+            });
+        };
+
+        await setupFirebase();
+        setupEventListeners();
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel del Maestro - Evaluación Diagnóstica La Salle</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- SheetJS for Excel (.xlsx, .xls) and PapaParse for CSV -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script>
+        Chart.defaults.color = '#a3a3a3';
+        Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: linear-gradient(135deg, #001220 0%, #001a2e 50%, #002542 100%);
+            color: #e5e7eb;
+            min-height: 100vh;
+        }
+        .glass-panel {
+            background: rgba(0, 34, 61, 0.75);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(0, 68, 116, 0.4);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #003356 0%, #004474 100%);
+            color: white; font-weight: 600;
+            padding: 0.65rem 1.25rem; border-radius: 0.6rem; transition: all 0.25s ease;
+            border: 1px solid #005896;
+            box-shadow: 0 4px 12px rgba(0, 51, 86, 0.3);
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #004474 0%, #005896 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(0, 88, 150, 0.4);
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+            color: white; font-weight: 600;
+            padding: 0.65rem 1.25rem; border-radius: 0.6rem; transition: all 0.25s ease;
+            border: 1px solid #34d399;
+        }
+        .btn-success:hover {
+            background: linear-gradient(135deg, #047857 0%, #059669 100%);
+            transform: translateY(-1px);
+        }
+        .btn-secondary {
+            background: rgba(0, 51, 86, 0.4); color: #e5e7eb;
+            font-weight: 600; padding: 0.65rem 1.25rem; border-radius: 0.6rem;
+            transition: all 0.25s ease; border: 1px solid #004474;
+        }
+        .btn-secondary:hover { background: #003356; color: white; border-color: #36A2EB; }
+        .btn-danger {
+            background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%);
+            color: white; font-weight: 600; padding: 0.65rem 1.25rem; border-radius: 0.6rem;
+            transition: all 0.25s ease; border: 1px solid #ef4444;
+        }
+        .btn-danger:hover { background: #b91c1c; }
+        .nav-tab {
+            padding: 0.75rem 1.25rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+            color: #9ca3af;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .nav-tab.active {
+            background: #003356;
+            color: #ffffff;
+            border: 1px solid #36A2EB;
+            box-shadow: 0 4px 12px rgba(54, 162, 235, 0.25);
+        }
+        .nav-tab:hover:not(.active) {
+            background: rgba(0, 51, 86, 0.5);
+            color: #f3f4f6;
+        }
+        select, input[type="number"], input[type="text"], input[type="search"] {
+            background-color: #001a2e;
+            border-color: #004474;
+            color: #e5e7eb;
+        }
+        select:focus, input:focus {
+            outline: none;
+            border-color: #36A2EB;
+            box-shadow: 0 0 0 2px rgba(54, 162, 235, 0.3);
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #001220; }
+        ::-webkit-scrollbar-thumb { background: #004474; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #36A2EB; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <!-- Notification Toast -->
+    <div id="notification" class="fixed top-5 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-6 py-3 rounded-xl shadow-2xl z-50 transition-all duration-300 opacity-0 transform -translate-y-10 flex items-center gap-3 border border-emerald-400"></div>
+
+    <!-- Main Container -->
+    <div class="glass-panel rounded-2xl p-6 md:p-8 shadow-2xl w-full max-w-screen-2xl mx-auto border border-blue-900/40">
+        
+        <!-- Header -->
+        <header class="flex flex-col lg:flex-row justify-between items-center pb-6 border-b border-gray-700/80 gap-6">
+            <div class="flex items-center gap-4">
+                <img src="https://i.imgur.com/dzDfAiQ.png" alt="Logo La Salle" class="h-16 w-auto drop-shadow-md">
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
+                        Panel del Maestro
+                        <span class="bg-blue-600/30 text-blue-300 border border-blue-500/50 text-xs px-3 py-1 rounded-full font-semibold">Diagnóstico Físico</span>
+                    </h1>
+                    <p class="text-sm text-gray-400 mt-1 flex items-center gap-2">
+                        <span>Maestro: <strong id="user-email-display" class="text-gray-200">Cargando...</strong></span>
+                        <span>•</span>
+                        <span class="text-emerald-400 font-medium">Ciclo Activo: <strong id="active-year-badge" class="text-white">2026</strong></span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Global Action Bar -->
+            <div class="flex flex-wrap items-center gap-3">
+                <div class="flex items-center bg-[#001a2e] p-1.5 rounded-xl border border-gray-700">
+                    <label for="year-selector" class="text-xs font-bold text-gray-400 uppercase tracking-wider px-2">Año Escolar:</label>
+                    <select id="year-selector" class="px-3 py-1.5 border rounded-lg font-bold text-blue-300 text-sm focus:ring-0">
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                        <option value="2026" selected>2026</option>
+                        <option value="2027">2027</option>
+                    </select>
+                    <button id="add-new-year-btn" title="Añadir nuevo curso escolar" class="ml-2 px-2 py-1 bg-blue-600/30 hover:bg-blue-600/60 text-blue-300 rounded-md text-xs font-bold transition">+ Nuevo Año</button>
+                </div>
+
+                <a href="index.html" target="_blank" class="btn-secondary text-sm flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    Vista Pública
+                </a>
+                <button id="logout-btn" class="btn-danger text-sm flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    Salir
+                </button>
+            </div>
+        </header>
+
+        <!-- Step Navigation Tabs -->
+        <nav class="flex flex-wrap gap-2 mt-6 p-1.5 bg-[#001a2e]/80 rounded-xl border border-gray-700/60">
+            <button class="nav-tab active" data-tab="tab-capture">
+                <span>📝</span> 1. Capturar Marcas
+            </button>
+            <button class="nav-tab" data-tab="tab-upload">
+                <span>📥</span> 2. Cargar Alumnos (Excel / CSV)
+            </button>
+            <button class="nav-tab" data-tab="tab-reports">
+                <span>📊</span> 3. Informes y Análisis
+            </button>
+            <button class="nav-tab" data-tab="tab-history">
+                <span>📈</span> 4. Histórico y Evolución Multiaño
+            </button>
+        </nav>
+
+        <!-- TAB 1: CAPTURE MARKS -->
+        <section id="tab-capture" class="tab-content mt-6">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 bg-[#001a2e] p-4 rounded-xl border border-gray-700">
+                <div class="flex flex-wrap items-center gap-4 w-full md:w-auto">
+                    <div>
+                        <label for="group-filter-table" class="block text-xs font-semibold text-gray-400 mb-1">Filtrar por Grupo:</label>
+                        <select id="group-filter-table" class="w-48 px-3 py-2 border rounded-lg text-sm font-medium">
+                            <option value="">Todos los grupos</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="search-student-table" class="block text-xs font-semibold text-gray-400 mb-1">Buscar Alumno:</label>
+                        <input type="search" id="search-student-table" placeholder="Nombre de alumno..." class="w-64 px-3 py-2 border rounded-lg text-sm">
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button id="export-csv-btn" class="btn-secondary text-sm flex items-center gap-2">
+                        <span>📤</span> Exportar Datos (Excel/CSV)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Students Capture Table -->
+            <div class="overflow-x-auto rounded-xl shadow-xl border border-gray-700">
+                <table class="min-w-full bg-[#00223d]" id="students-table">
+                    <thead class="bg-[#003356] text-white uppercase text-xs tracking-wider">
+                        <tr>
+                            <th class="py-3.5 px-4 text-left font-bold">Alumno</th>
+                            <th class="py-3.5 px-2 text-center font-bold">Edad</th>
+                            <th class="py-3.5 px-2 text-center font-bold">Género</th>
+                            <th class="py-3.5 px-2 text-center font-bold">Velocidad (50m)</th>
+                            <th class="py-3.5 px-2 text-center font-bold">Resistencia</th>
+                            <th class="py-3.5 px-2 text-center font-bold">Salto Vert.</th>
+                            <th class="py-3.5 px-2 text-center font-bold">Salto Horiz.</th>
+                            <th class="py-3.5 px-2 text-center font-bold">Abdominales</th>
+                            <th class="py-3.5 px-2 text-center font-bold">Plancha</th>
+                            <th class="py-3.5 px-2 text-center font-bold">Flexibilidad</th>
+                            <th class="py-3.5 px-3 text-center font-bold text-blue-300">Cal. Final</th>
+                            <th class="py-3.5 px-3 text-center font-bold">Observación</th>
+                            <th class="py-3.5 px-3 text-center font-bold">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="students-table-body" class="text-gray-200 text-sm divide-y divide-gray-700/60">
+                        <!-- Dynamic rows injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- TAB 2: UPLOAD EXCEL / CSV -->
+        <section id="tab-upload" class="tab-content mt-6 hidden">
+            <div class="bg-[#001a2e] p-6 md:p-8 rounded-xl border border-gray-700">
+                <h2 class="text-xl font-bold text-white mb-2 flex items-center gap-2">
+                    <span>📂</span> Cargar Lista de Alumnos por Año Escolar
+                </h2>
+                <p class="text-sm text-gray-400 mb-6">
+                    Sube un archivo de Excel (<strong>.xlsx</strong>, <strong>.xls</strong>) o <strong>.csv</strong> con las columnas: 
+                    <span class="text-blue-300 font-semibold">Nombre, Grupo, Edad, Género</span>. Los alumnos se asociarán automáticamente al ciclo activo seleccionado (<strong id="upload-target-year-display" class="text-emerald-400">2026</strong>).
+                </p>
+
+                <!-- Drag and Drop Dropzone -->
+                <div id="drop-zone" class="border-2 border-dashed border-blue-500/50 hover:border-blue-400 bg-[#00223d]/60 hover:bg-[#00223d] p-10 rounded-2xl text-center cursor-pointer transition-all">
+                    <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" class="hidden">
+                    <div class="flex flex-col items-center gap-3">
+                        <span class="text-5xl">📊</span>
+                        <h3 class="text-lg font-bold text-gray-200">Arrastra aquí tu archivo Excel o CSV</h3>
+                        <p class="text-xs text-gray-400">o haz clic para examinar tus archivos en la computadora</p>
+                        <button type="button" onclick="document.getElementById('excel-file-input').click()" class="btn-primary mt-2 text-sm">
+                            Seleccionar Archivo
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Excel Preview Modal/Section -->
+                <div id="upload-preview-container" class="mt-8 hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <span>👁️</span> Previsualización de Datos a Importar (<span id="preview-count" class="text-emerald-400">0</span> alumnos)
+                        </h3>
+                        <div class="flex gap-3">
+                            <button id="cancel-import-btn" class="btn-secondary text-sm">Cancelar</button>
+                            <button id="confirm-import-btn" class="btn-success text-sm flex items-center gap-2">
+                                <span>🚀</span> Confirmar e Guardar en Firestore
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto rounded-xl border border-gray-700 max-h-96">
+                        <table class="min-w-full bg-[#00223d] text-sm">
+                            <thead class="bg-[#003356] text-gray-200 uppercase text-xs">
+                                <tr>
+                                    <th class="py-2.5 px-4 text-left">#</th>
+                                    <th class="py-2.5 px-4 text-left">Nombre Completo</th>
+                                    <th class="py-2.5 px-4 text-center">Grupo</th>
+                                    <th class="py-2.5 px-4 text-center">Edad</th>
+                                    <th class="py-2.5 px-4 text-center">Género</th>
+                                    <th class="py-2.5 px-4 text-center">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="preview-table-body" class="divide-y divide-gray-700 text-gray-300">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: REPORTS & ANALYTICS -->
+        <section id="tab-reports" class="tab-content mt-6 hidden">
+            <div class="bg-[#001a2e] p-6 rounded-xl border border-gray-700 mb-6">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                        <span>📊</span> Informes de Rendimiento y Análisis Estadístico
+                    </h2>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <select id="report-group-filter" class="px-3 py-2 border rounded-lg text-sm">
+                            <option value="">Todos los grupos</option>
+                        </select>
+                        <select id="report-gender-filter" class="px-3 py-2 border rounded-lg text-sm">
+                            <option value="">Todos los géneros</option>
+                            <option value="male">Masculino</option>
+                            <option value="female">Femenino</option>
+                        </select>
+                        <button id="apply-report-filters-btn" class="btn-primary text-sm">Aplicar Filtros</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Overview Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-[#00223d] p-6 rounded-2xl border border-blue-800/60 shadow-lg">
+                    <p class="text-xs uppercase tracking-wider font-semibold text-gray-400 mb-1">Total Alumnos Evaluados</p>
+                    <p id="total-students-stat" class="text-4xl font-extrabold text-blue-400">0</p>
+                </div>
+                <div class="bg-[#00223d] p-6 rounded-2xl border border-emerald-800/60 shadow-lg">
+                    <p class="text-xs uppercase tracking-wider font-semibold text-gray-400 mb-1">Promedio General de Calificación</p>
+                    <p id="avg-grade-stat" class="text-4xl font-extrabold text-emerald-400">0.00</p>
+                </div>
+                <div class="bg-[#00223d] p-6 rounded-2xl border border-amber-800/60 shadow-lg">
+                    <p class="text-xs uppercase tracking-wider font-semibold text-gray-400 mb-1">Alumnos Requieren Apoyo (&lt; 7.0)</p>
+                    <p id="need-support-stat" class="text-4xl font-extrabold text-amber-400">0</p>
+                </div>
+            </div>
+
+            <!-- Charts Container -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <div class="bg-[#001a2e] p-6 rounded-xl border border-gray-700 shadow-inner h-96 relative">
+                    <h3 class="text-base font-bold text-gray-200 mb-4">Promedio de Calificación por Prueba Físicas</h3>
+                    <canvas id="chart-avg-scores"></canvas>
+                </div>
+                <div class="bg-[#001a2e] p-6 rounded-xl border border-gray-700 shadow-inner h-96 relative">
+                    <h3 class="text-base font-bold text-gray-200 mb-4">Distribución de Calificaciones Finales</h3>
+                    <canvas id="chart-grade-dist"></canvas>
+                </div>
+            </div>
+
+            <!-- Support List -->
+            <div class="bg-[#001a2e] p-6 rounded-xl border border-gray-700">
+                <h3 class="text-lg font-bold text-amber-400 mb-4 flex items-center gap-2">
+                    <span>⚠️</span> Alumnos que Requieren Apoyo Físico (&lt; 7.0)
+                </h3>
+                <div id="support-students-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Dynamic support cards -->
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: MULTI-YEAR HISTORICAL EVOLUTION -->
+        <section id="tab-history" class="tab-content mt-6 hidden">
+            <div class="bg-[#001a2e] p-6 rounded-xl border border-gray-700 mb-6">
+                <h2 class="text-xl font-bold text-white mb-2 flex items-center gap-2">
+                    <span>📈</span> Histórico y Análisis de Evolución Multiaño
+                </h2>
+                <p class="text-sm text-gray-400 mb-4">
+                    Selecciona un alumno para comparar sus calificaciones físicas a lo largo de distintos ciclos escolares.
+                </p>
+
+                <div class="flex flex-wrap items-center gap-4">
+                    <div class="w-full md:w-80">
+                        <label for="history-student-select" class="block text-xs font-semibold text-gray-400 mb-1">Buscar Alumno:</label>
+                        <select id="history-student-select" class="w-full px-3 py-2 border rounded-lg text-sm">
+                            <option value="">Selecciona un alumno...</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div id="history-charts-container" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="bg-[#001a2e] p-6 rounded-xl border border-gray-700 h-96 relative">
+                    <h3 class="text-base font-bold text-blue-300 mb-4" id="history-line-chart-title">Evolución de Calificación Final</h3>
+                    <canvas id="chart-history-line"></canvas>
+                </div>
+                <div class="bg-[#001a2e] p-6 rounded-xl border border-gray-700 h-96 relative">
+                    <h3 class="text-base font-bold text-blue-300 mb-4">Comparativa de Radar por Años</h3>
+                    <canvas id="chart-history-radar"></canvas>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- MAIN FIREBASE & APPLICATION LOGIC -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const __app_id = window.__app_id || 'default-app-id';
+        const firebaseConfig = {
+            apiKey: "AIzaSyCIAqDZDZZwWspxNEtzVGd64bSZ0rxO0rs",
+            authDomain: "diagnostico-cd701.firebaseapp.com",
+            databaseURL: "https://diagnostico-cd701-default-rtdb.firebaseio.com",
+            projectId: "diagnostico-cd701",
+            storageBucket: "diagnostico-cd701.firebasestorage.app",
+            messagingSenderId: "372454029287",
+            appId: "1:372454029287:web:ecd8db9ff67dbd961aaf42",
+            measurementId: "G-07LZ996EZ5"
+        };
+
+        let app, db, auth;
+        let studentsData = [];
+        let parsedExcelData = [];
+
+        const testNames = ['Velocidad (50 metros planos)', 'Resistencia', 'Salto Vertical', 'Salto Horizontal', 'Abdominales', 'Plancha', 'Flexibilidad'];
+        const unitMap = {
+            "Velocidad (50 metros planos)": "s", "Resistencia": "m", "Salto Vertical": "cm",
+            "Salto Horizontal": "cm", "Abdominales": "reps", "Plancha": "s", "Flexibilidad": "cm"
+        };
+
+        let avgScoresChart, gradeDistChart, historyLineChart, historyRadarChart;
+
+        // BAREMOS DE EVALUACION OFICIALES
+        const GRADING_SCALES = {
+            "Velocidad (50 metros planos)": {
+                "M": [{ grade: 10, threshold: 7.0, type: "less_than" }, { grade: 9, threshold: 7.4, type: "less_than_or_equal" }, { grade: 8, threshold: 8.0, type: "less_than_or_equal" }, { grade: 7, threshold: 8.5, type: "less_than_or_equal" }],
+                "F": [{ grade: 10, threshold: 8.0, type: "less_than" }, { grade: 9, threshold: 8.4, type: "less_than_or_equal" }, { grade: 8, threshold: 9.0, type: "less_than_or_equal" }, { grade: 7, threshold: 9.5, type: "less_than_or_equal" }]
+            },
+            "Resistencia": {
+                "M": [{ grade: 10, threshold: 2000, type: "greater_than_or_equal" }, { grade: 9, threshold: 1800, type: "greater_than_or_equal" }, { grade: 8, threshold: 1500, type: "greater_than_or_equal" }, { grade: 7, threshold: 1200, type: "greater_than_or_equal" }],
+                "F": [{ grade: 10, threshold: 1801, type: "greater_than_or_equal" }, { grade: 9, threshold: 1501, type: "greater_than_or_equal" }, { grade: 8, threshold: 1201, type: "greater_than_or_equal" }, { grade: 7, threshold: 1000, type: "greater_than_or_equal" }]
+            },
+            "Salto Vertical": {
+                "M": [{ grade: 10, threshold: 49, type: "greater_than" }, { grade: 9, threshold: 45, type: "greater_than_or_equal" }, { grade: 8, threshold: 40, type: "greater_than_or_equal" }, { grade: 7, threshold: 30, type: "greater_than_or_equal" }],
+                "F": [{ grade: 10, threshold: 39, type: "greater_than" }, { grade: 9, threshold: 35, type: "greater_than_or_equal" }, { grade: 8, threshold: 30, type: "greater_than_or_equal" }, { grade: 7, threshold: 25, type: "greater_than_or_equal" }]
+            },
+            "Salto Horizontal": {
+                "M": [{ grade: 10, threshold: 200, type: "greater_than" }, { grade: 9, threshold: 185, type: "greater_than_or_equal" }, { grade: 8, threshold: 170, type: "greater_than_or_equal" }, { grade: 7, threshold: 155, type: "greater_than_or_equal" }],
+                "F": [{ grade: 10, threshold: 165, type: "greater_than" }, { grade: 9, threshold: 150, type: "greater_than_or_equal" }, { grade: 8, threshold: 135, type: "greater_than_or_equal" }, { grade: 7, threshold: 120, type: "greater_than_or_equal" }]
+            },
+            "Abdominales": {
+                "M": [{ grade: 10, threshold: 40, type: "greater_than" }, { grade: 9, threshold: 35, type: "greater_than_or_equal" }, { grade: 8, threshold: 30, type: "greater_than_or_equal" }, { grade: 7, threshold: 25, type: "greater_than_or_equal" }],
+                "F": [{ grade: 10, threshold: 35, type: "greater_than" }, { grade: 9, threshold: 30, type: "greater_than_or_equal" }, { grade: 8, threshold: 25, type: "greater_than_or_equal" }, { grade: 7, threshold: 20, type: "greater_than_or_equal" }]
+            },
+            "Plancha": {
+                "M": [{ grade: 10, threshold: 90, type: "greater_than" }, { grade: 9, threshold: 75, type: "greater_than_or_equal" }, { grade: 8, threshold: 60, type: "greater_than_or_equal" }, { grade: 7, threshold: 45, type: "greater_than_or_equal" }],
+                "F": [{ grade: 10, threshold: 75, type: "greater_than" }, { grade: 9, threshold: 60, type: "greater_than_or_equal" }, { grade: 8, threshold: 45, type: "greater_than_or_equal" }, { grade: 7, threshold: 30, type: "greater_than_or_equal" }]
+            },
+            "Flexibilidad": {
+                "M": [{ grade: 10, threshold: 20, type: "greater_than" }, { grade: 9, threshold: 10, type: "greater_than" }, { grade: 8, threshold: 0, type: "greater_than" }, { grade: 7, threshold: -8, type: "greater_than" }],
+                "F": [{ grade: 10, threshold: 25, type: "greater_than" }, { grade: 9, threshold: 15, type: "greater_than" }, { grade: 8, threshold: 5, type: "greater_than" }, { grade: 7, threshold: -5, type: "greater_than" }]
+            }
+        };
+
+        const calculateTestScore = (testName, gender, result) => {
+            if (result === null || result === undefined || result === '') return 0;
+            const score = parseFloat(result);
+            if (isNaN(score)) return 0;
+            const genderKey = gender && gender.trim().toLowerCase().startsWith('m') ? 'M' : 'F';
+            const scales = GRADING_SCALES[testName];
+            if (!scales) return 0;
+            const genderScales = scales[genderKey];
+            if (!genderScales) return 0;
+            for (const entry of genderScales) {
+                if (entry.type === "less_than" && score < entry.threshold) return entry.grade;
+                if (entry.type === "less_than_or_equal" && score <= entry.threshold) return entry.grade;
+                if (entry.type === "greater_than" && score > entry.threshold) return entry.grade;
+                if (entry.type === "greater_than_or_equal" && score >= entry.threshold) return entry.grade;
+            }
+            return 6;
+        };
+
+        const calculateFinalGrade = (scores) => {
+            const grades = Object.values(scores).filter(g => g >= 6 && g <= 10);
+            if (grades.length === 0) return 0;
+            const sum = grades.reduce((acc, current) => acc + current, 0);
+            return sum / grades.length;
+        };
+
+        const showNotification = (message, isSuccess = true) => {
+            const notification = document.getElementById('notification');
+            notification.innerHTML = `<span>${isSuccess ? '✅' : '❌'}</span> <span>${message}</span>`;
+            notification.className = `fixed top-5 left-1/2 -translate-x-1/2 px-6 py-3 rounded-xl shadow-2xl z-50 transition-all duration-300 opacity-100 transform translate-y-0 ${isSuccess ? 'bg-emerald-600 border-emerald-400' : 'bg-red-600 border-red-400'} text-white font-medium flex items-center gap-3 border`;
+            setTimeout(() => {
+                notification.className = notification.className.replace('opacity-100 translate-y-0', 'opacity-0 -translate-y-10');
+            }, 3500);
+        };
+
+        // NAVIGATION TABS
+        document.querySelectorAll('.nav-tab').forEach(tabBtn => {
+            tabBtn.addEventListener('click', () => {
+                document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+                tabBtn.classList.add('active');
+                const targetTabId = tabBtn.dataset.tab;
+                document.getElementById(targetTabId).classList.remove('hidden');
+
+                if (targetTabId === 'tab-reports') renderReports();
+                if (targetTabId === 'tab-history') renderHistoryTab();
+            });
+        });
+
+        // INIT FIREBASE
+        const setupFirebase = async () => {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        document.getElementById('user-email-display').textContent = user.email;
+                        loadStudents();
+                    } else {
+                        window.location.href = 'login.html';
+                    }
+                });
+            } catch (error) {
+                console.error("Firebase Init Error:", error);
+            }
+        };
+
+        // LOAD STUDENTS FOR ACTIVE YEAR
+        const loadStudents = async () => {
+            const year = document.getElementById('year-selector').value;
+            document.getElementById('active-year-badge').textContent = year;
+            document.getElementById('upload-target-year-display').textContent = year;
+            showNotification(`Cargando alumnos del ciclo ${year}...`, true);
+
+            try {
+                const studentsRef = collection(db, `/artifacts/${__app_id}/public/data/students`);
+                const studentsSnapshot = await getDocs(studentsRef);
+                
+                const studentPromises = studentsSnapshot.docs.map(async (studentDoc) => {
+                    const student = { id: studentDoc.id, ...studentDoc.data() };
+                    const resultDocRef = doc(db, `/artifacts/${__app_id}/public/data/students/${student.id}/results/${year}`);
+                    const resultDoc = await getDoc(resultDocRef);
+                    
+                    if (resultDoc.exists()) {
+                        const resultData = resultDoc.data();
+                        student.tests = resultData.tests || {};
+                        student.finalGrade = resultData.finalGrade || 0;
+                        student.observation = resultData.observation || '';
+                    } else {
+                        student.tests = {};
+                        student.finalGrade = 0;
+                        student.observation = '';
+                    }
+                    return student;
+                });
+
+                studentsData = await Promise.all(studentPromises);
+                renderStudentsTable();
+                populateGroupFilters();
+                populateHistoryStudentSelector();
+            } catch (error) {
+                console.error("Error al cargar alumnos:", error);
+                showNotification("Error al cargar alumnos.", false);
+            }
+        };
+
+        // RENDER TABLE
+        const renderStudentsTable = () => {
+            const tbody = document.getElementById('students-table-body');
+            tbody.innerHTML = '';
+
+            const groupFilter = document.getElementById('group-filter-table').value;
+            const searchFilter = document.getElementById('search-student-table').value.toLowerCase().trim();
+
+            let filtered = studentsData;
+            if (groupFilter) filtered = filtered.filter(s => s.group === groupFilter);
+            if (searchFilter) filtered = filtered.filter(s => s.name && s.name.toLowerCase().includes(searchFilter));
+
+            filtered.sort((a, b) => (a.name || '').localeCompare(b.name || '')).forEach(student => {
+                const studentGrades = {};
+                testNames.forEach(test => {
+                    studentGrades[test] = calculateTestScore(test, student.gender, student.tests?.[test]);
+                });
+                student.finalGrade = calculateFinalGrade(studentGrades);
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-[#003356]/60 transition-colors border-b border-gray-700/60';
+                tr.dataset.id = student.id;
+
+                const genderTag = (student.gender && student.gender.toLowerCase().startsWith('m')) || student.gender === 'male' ? 'M' : 'F';
+                const genderClass = genderTag === 'M' ? 'text-blue-400 bg-blue-900/30' : 'text-pink-400 bg-pink-900/30';
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-semibold text-white">
+                        <div>${student.name || 'N/A'}</div>
+                        <div class="text-xs text-gray-400 font-normal">Grupo: ${student.group || 'N/A'}</div>
+                    </td>
+                    <td class="py-3 px-2 text-center text-xs">${student.age || '-'}</td>
+                    <td class="py-3 px-2 text-center">
+                        <span class="text-xs font-bold px-2 py-0.5 rounded-md ${genderClass}">${genderTag}</span>
+                    </td>
+                    ${testNames.map(test => `
+                        <td class="py-2 px-1 text-center">
+                            <input type="number" step="any" data-test-name="${test}" value="${student.tests?.[test] !== undefined ? student.tests[test] : ''}" 
+                                class="w-16 px-1.5 py-1 text-center border rounded-md text-xs font-medium focus:ring-2 focus:ring-blue-400 bg-[#001220]">
+                        </td>
+                    `).join('')}
+                    <td class="py-3 px-3 font-bold text-center text-base text-blue-300">
+                        ${student.finalGrade ? student.finalGrade.toFixed(2) : '-'}
+                    </td>
+                    <td class="py-3 px-3 text-center text-xs">
+                        <span class="block truncate max-w-[120px] text-gray-400 italic">${student.observation || 'Sin nota'}</span>
+                        <button class="edit-observation-btn text-[11px] text-blue-400 hover:underline mt-0.5" data-id="${student.id}">Editar</button>
+                    </td>
+                    <td class="py-3 px-3 text-center">
+                        <button class="generate-report-btn btn-primary text-xs py-1 px-2.5" data-id="${student.id}">PDF</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        };
+
+        const populateGroupFilters = () => {
+            const groups = [...new Set(studentsData.map(s => s.group).filter(Boolean))].sort();
+            ['group-filter-table', 'report-group-filter'].forEach(id => {
+                const select = document.getElementById(id);
+                if (!select) return;
+                const currentVal = select.value;
+                select.innerHTML = `<option value="">Todos los grupos</option>`;
+                groups.forEach(g => select.innerHTML += `<option value="${g}">${g}</option>`);
+                select.value = currentVal;
+            });
+        };
+
+        // SAVE SCORE INLINE
+        const saveStudentScore = async (studentId, testName, value) => {
+            const student = studentsData.find(s => s.id === studentId);
+            if (!student) return;
+
+            const year = document.getElementById('year-selector').value;
+            const val = value === '' ? '' : parseFloat(value);
+            
+            const newTests = { ...student.tests };
+            if (val === '' || isNaN(val)) {
+                delete newTests[testName];
+            } else {
+                newTests[testName] = val;
+            }
+
+            const grades = Object.entries(newTests).reduce((acc, [name, result]) => {
+                acc[name] = calculateTestScore(name, student.gender, result);
+                return acc;
+            }, {});
+            const newFinalGrade = calculateFinalGrade(grades);
+
+            const resultDocRef = doc(db, `/artifacts/${__app_id}/public/data/students/${studentId}/results/${year}`);
+
+            try {
+                await setDoc(resultDocRef, { tests: newTests, finalGrade: newFinalGrade }, { merge: true });
+                student.tests = newTests;
+                student.finalGrade = newFinalGrade;
+                renderStudentsTable();
+            } catch (e) {
+                console.error("Error al guardar marca: ", e);
+                showNotification("Error al guardar la marca.", false);
+            }
+        };
+
+        // EDIT OBSERVATION
+        const saveObservation = async (studentId, observationText) => {
+            const student = studentsData.find(s => s.id === studentId);
+            if (!student) return;
+
+            const year = document.getElementById('year-selector').value;
+            const resultDocRef = doc(db, `/artifacts/${__app_id}/public/data/students/${studentId}/results/${year}`);
+
+            try {
+                await setDoc(resultDocRef, { observation: observationText }, { merge: true });
+                student.observation = observationText;
+                showNotification("Observación guardada.", true);
+                renderStudentsTable();
+            } catch (e) {
+                console.error("Error al guardar observación: ", e);
+                showNotification("Error al guardar observación.", false);
+            }
+        };
+
+        // EXCEL / CSV DRAG AND DROP & IMPORT ENGINE
+        const handleFileUpload = (file) => {
+            if (!file) return;
+            const reader = new FileReader();
+            const filename = file.name.toLowerCase();
+
+            reader.onload = (e) => {
+                try {
+                    let rows = [];
+                    if (filename.endsWith('.csv')) {
+                        const csvText = e.target.result;
+                        const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+                        rows = parsed.data;
+                    } else {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        rows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+                    }
+
+                    normalizeAndPreviewExcelRows(rows);
+                } catch (err) {
+                    console.error("Error parsing file:", err);
+                    showNotification("Error al leer el archivo Excel/CSV.", false);
+                }
+            };
+
+            if (filename.endsWith('.csv')) {
+                reader.readAsText(file);
+            } else {
+                reader.readAsArrayBuffer(file);
+            }
+        };
+
+        const normalizeAndPreviewExcelRows = (rows) => {
+            parsedExcelData = [];
+            const previewTbody = document.getElementById('preview-table-body');
+            previewTbody.innerHTML = '';
+
+            rows.forEach((row, index) => {
+                // Auto detect column names
+                const keys = Object.keys(row);
+                const findVal = (possibleNames) => {
+                    const matchKey = keys.find(k => possibleNames.some(p => k.toLowerCase().trim() === p.toLowerCase()));
+                    return matchKey ? String(row[matchKey]).trim() : '';
+                };
+
+                const name = findVal(['nombre', 'nombre completo', 'alumno', 'estudiante', 'name']);
+                const group = findVal(['grupo', 'grado', 'sección', 'seccion', 'class', 'group']);
+                const ageStr = findVal(['edad', 'age']);
+                const genderRaw = findVal(['género', 'genero', 'sexo', 'gender']);
+
+                if (!name) return; // Skip empty rows
+
+                const age = parseInt(ageStr) || 12;
+                let gender = 'male';
+                if (genderRaw.toLowerCase().startsWith('f') || genderRaw.toLowerCase().includes('fem') || (genderRaw.toLowerCase() === 'm' && genderRaw.toLowerCase().includes('muj'))) {
+                    gender = 'female';
+                } else if (genderRaw.toLowerCase().startsWith('m') || genderRaw.toLowerCase().startsWith('h') || genderRaw.toLowerCase().includes('masc')) {
+                    gender = 'male';
+                }
+
+                parsedExcelData.push({ name, group: group || 'General', age, gender });
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-[#003356]/40';
+                tr.innerHTML = `
+                    <td class="py-2 px-4 text-xs font-mono">${index + 1}</td>
+                    <td class="py-2 px-4 font-medium text-white">${name}</td>
+                    <td class="py-2 px-4 text-center">${group || 'General'}</td>
+                    <td class="py-2 px-4 text-center">${age}</td>
+                    <td class="py-2 px-4 text-center font-bold ${gender === 'female' ? 'text-pink-400' : 'text-blue-400'}">${gender === 'female' ? 'Femenino' : 'Masculino'}</td>
+                    <td class="py-2 px-4 text-center text-xs text-emerald-400 font-semibold">Listo</td>
+                `;
+                previewTbody.appendChild(tr);
+            });
+
+            document.getElementById('preview-count').textContent = parsedExcelData.length;
+            document.getElementById('upload-preview-container').classList.remove('hidden');
+            showNotification(`Se detectaron ${parsedExcelData.length} alumnos en el archivo.`);
+        };
+
+        // CONFIRM IMPORT TO FIRESTORE
+        const confirmImportToFirestore = async () => {
+            if (parsedExcelData.length === 0) return;
+            const year = document.getElementById('year-selector').value;
+            showNotification(`Guardando ${parsedExcelData.length} alumnos en el ciclo ${year}...`, true);
+
+            try {
+                for (const item of parsedExcelData) {
+                    // Check if student with same name exists
+                    const existing = studentsData.find(s => s.name && s.name.toLowerCase().trim() === item.name.toLowerCase().trim());
+                    let studentId;
+                    if (existing) {
+                        studentId = existing.id;
+                        const docRef = doc(db, `/artifacts/${__app_id}/public/data/students/${studentId}`);
+                        await setDoc(docRef, { name: item.name, group: item.group, age: item.age, gender: item.gender }, { merge: true });
+                    } else {
+                        const newDocRef = doc(collection(db, `/artifacts/${__app_id}/public/data/students`));
+                        studentId = newDocRef.id;
+                        await setDoc(newDocRef, { name: item.name, group: item.group, age: item.age, gender: item.gender });
+                    }
+
+                    // Initialize results for the active year
+                    const resultRef = doc(db, `/artifacts/${__app_id}/public/data/students/${studentId}/results/${year}`);
+                    const resultSnap = await getDoc(resultRef);
+                    if (!resultSnap.exists()) {
+                        await setDoc(resultRef, { tests: {}, finalGrade: 0, observation: '' });
+                    }
+                }
+
+                showNotification("¡Importación masiva completada con éxito!", true);
+                document.getElementById('upload-preview-container').classList.add('hidden');
+                parsedExcelData = [];
+                await loadStudents();
+                
+                // Switch back to capture tab
+                document.querySelector('.nav-tab[data-tab="tab-capture"]').click();
+            } catch (err) {
+                console.error("Error durante importación:", err);
+                showNotification("Error al guardar alumnos en Firestore.", false);
+            }
+        };
+
+        // REPORTS GENERATION
+        const renderReports = () => {
+            const groupFilter = document.getElementById('report-group-filter').value;
+            const genderFilter = document.getElementById('report-gender-filter').value;
+
+            let filtered = studentsData;
+            if (groupFilter) filtered = filtered.filter(s => s.group === groupFilter);
+            if (genderFilter) filtered = filtered.filter(s => s.gender && s.gender.toLowerCase() === genderFilter.toLowerCase());
+
+            const total = filtered.length;
+            const avgGrade = total > 0 ? filtered.reduce((sum, s) => sum + (s.finalGrade || 0), 0) / total : 0;
+            const needSupport = filtered.filter(s => (s.finalGrade || 0) < 7);
+
+            document.getElementById('total-students-stat').textContent = total;
+            document.getElementById('avg-grade-stat').textContent = avgGrade.toFixed(2);
+            document.getElementById('need-support-stat').textContent = needSupport.length;
+
+            // Render support cards
+            const grid = document.getElementById('support-students-grid');
+            grid.innerHTML = '';
+            if (needSupport.length > 0) {
+                needSupport.sort((a,b) => a.name.localeCompare(b.name)).forEach(s => {
+                    grid.innerHTML += `
+                        <div class="bg-[#00223d] p-4 rounded-xl border border-amber-500/40">
+                            <h4 class="font-bold text-white">${s.name}</h4>
+                            <p class="text-xs text-gray-400">Grupo: ${s.group || 'N/A'}</p>
+                            <p class="text-lg font-extrabold text-amber-400 mt-2">Calificación: ${(s.finalGrade || 0).toFixed(2)}</p>
+                        </div>
+                    `;
+                });
+            } else {
+                grid.innerHTML = `<p class="text-sm text-gray-400 col-span-full">No hay alumnos en esta categoría para el filtro seleccionado.</p>`;
+            }
+
+            // Render Bar Chart
+            const avgScores = testNames.map(test => {
+                const scores = filtered.map(s => {
+                    return calculateTestScore(test, s.gender, s.tests?.[test]);
+                }).filter(s => s > 0);
+                return scores.length > 0 ? scores.reduce((a,b) => a+b, 0) / scores.length : 0;
+            });
+
+            if (avgScoresChart) avgScoresChart.destroy();
+            avgScoresChart = new Chart(document.getElementById('chart-avg-scores'), {
+                type: 'bar',
+                data: {
+                    labels: ['Velocidad', 'Resistencia', 'Salto Vert.', 'Salto Horiz.', 'Abdom.', 'Plancha', 'Flexib.'],
+                    datasets: [{
+                        label: 'Calificación Promedio (0-10)',
+                        data: avgScores,
+                        backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                        borderColor: '#36A2EB',
+                        borderWidth: 1.5,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, max: 10 } }
+                }
+            });
+
+            // Render Distribution Chart
+            const dist = [0, 0, 0, 0]; // 6-7, 7-8, 8-9, 9-10
+            filtered.forEach(s => {
+                const g = s.finalGrade || 0;
+                if (g >= 6 && g < 7) dist[0]++;
+                else if (g >= 7 && g < 8) dist[1]++;
+                else if (g >= 8 && g < 9) dist[2]++;
+                else if (g >= 9 && g <= 10) dist[3]++;
+            });
+
+            if (gradeDistChart) gradeDistChart.destroy();
+            gradeDistChart = new Chart(document.getElementById('chart-grade-dist'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['6.0 - 6.9 (Bajo)', '7.0 - 7.9 (Regular)', '8.0 - 8.9 (Bueno)', '9.0 - 10.0 (Excelente)'],
+                    datasets: [{
+                        data: dist,
+                        backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6', '#10b981']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        };
+
+        // MULTI-YEAR HISTORY TAB
+        const populateHistoryStudentSelector = () => {
+            const select = document.getElementById('history-student-select');
+            select.innerHTML = `<option value="">Selecciona un alumno...</option>`;
+            studentsData.sort((a,b) => (a.name || '').localeCompare(b.name || '')).forEach(s => {
+                select.innerHTML += `<option value="${s.id}">${s.name} (${s.group || 'Sin Grupo'})</option>`;
+            });
+        };
+
+        const renderHistoryTab = async () => {
+            const studentId = document.getElementById('history-student-select').value;
+            const container = document.getElementById('history-charts-container');
+            if (!studentId) {
+                container.classList.add('hidden');
+                return;
+            }
+
+            const student = studentsData.find(s => s.id === studentId);
+            if (!student) return;
+
+            showNotification(`Cargando historial multiaño para ${student.name}...`);
+
+            const yearsToFetch = ['2024', '2025', '2026', '2027'];
+            const yearResults = [];
+
+            for (const yr of yearsToFetch) {
+                const resRef = doc(db, `/artifacts/${__app_id}/public/data/students/${studentId}/results/${yr}`);
+                const resSnap = await getDoc(resRef);
+                if (resSnap.exists() && resSnap.data().finalGrade > 0) {
+                    const data = resSnap.data();
+                    yearResults.push({
+                        year: yr,
+                        finalGrade: data.finalGrade || 0,
+                        tests: data.tests || {}
+                    });
+                }
+            }
+
+            if (yearResults.length === 0) {
+                showNotification("No hay registros multiaño para este alumno.", false);
+                container.classList.add('hidden');
+                return;
+            }
+
+            container.classList.remove('hidden');
+            document.getElementById('history-line-chart-title').textContent = `Evolución de ${student.name} por Ciclo Escolar`;
+
+            // Line Chart
+            if (historyLineChart) historyLineChart.destroy();
+            historyLineChart = new Chart(document.getElementById('chart-history-line'), {
+                type: 'line',
+                data: {
+                    labels: yearResults.map(y => y.year),
+                    datasets: [{
+                        label: 'Calificación Final',
+                        data: yearResults.map(y => y.finalGrade),
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, max: 10 } }
+                }
+            });
+
+            // Radar Chart comparing years
+            const radarColors = [
+                { bg: 'rgba(54, 162, 235, 0.2)', border: '#36A2EB' },
+                { bg: 'rgba(16, 185, 129, 0.2)', border: '#10b981' },
+                { bg: 'rgba(245, 158, 11, 0.2)', border: '#f59e0b' },
+                { bg: 'rgba(239, 68, 68, 0.2)', border: '#ef4444' }
+            ];
+
+            const radarDatasets = yearResults.map((y, idx) => {
+                const color = radarColors[idx % radarColors.length];
+                const scores = testNames.map(t => calculateTestScore(t, student.gender, y.tests[t]));
+                return {
+                    label: `Ciclo ${y.year}`,
+                    data: scores,
+                    backgroundColor: color.bg,
+                    borderColor: color.border,
+                    borderWidth: 2
+                };
+            });
+
+            if (historyRadarChart) historyRadarChart.destroy();
+            historyRadarChart = new Chart(document.getElementById('chart-history-radar'), {
+                type: 'radar',
+                data: {
+                    labels: ['Velocidad', 'Resistencia', 'Salto Vert.', 'Salto Horiz.', 'Abdom.', 'Plancha', 'Flexib.'],
+                    datasets: radarDatasets
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { r: { beginAtZero: true, max: 10 } }
+                }
+            });
+        };
+
+        // SINGLE PDF REPORT
+        const generateStudentReport = async (studentId) => {
+            showNotification("Generando PDF...");
+            const { jsPDF } = window.jspdf;
+            const student = studentsData.find(s => s.id === studentId);
+            if (!student) return;
+
+            const year = document.getElementById('year-selector').value;
+
+            const reportElement = document.createElement('div');
+            reportElement.style.position = 'absolute';
+            reportElement.style.left = '-9999px';
+            reportElement.style.width = '210mm';
+            reportElement.style.padding = '15mm';
+            reportElement.style.backgroundColor = 'white';
+            reportElement.style.color = 'black';
+            reportElement.style.fontFamily = 'Inter, sans-serif';
+
+            const studentGrades = {};
+            let resultsHtml = '';
+            testNames.forEach(test => {
+                const result = student.tests?.[test];
+                const grade = calculateTestScore(test, student.gender, result);
+                studentGrades[test] = grade;
+                resultsHtml += `
+                    <tr style="border-bottom: 1px solid #eee;">
+                        <td style="padding: 8px;">${test}</td>
+                        <td style="padding: 8px; text-align: center;">${result !== undefined && result !== '' ? result + (unitMap[test] || '') : 'No realizada'}</td>
+                        <td style="padding: 8px; text-align: center; font-weight: bold; color: #003356;">${grade > 0 ? grade : '-'}</td>
+                    </tr>
+                `;
+            });
+
+            reportElement.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #003356; padding-bottom: 10px;">
+                    <h1 style="font-size: 24px; font-weight: 700; color: #003356;">Informe de Evaluación Diagnóstica</h1>
+                    <img src="https://i.imgur.com/dzDfAiQ.png" alt="Logo" style="height: 50px;">
+                </div>
+                <div style="margin-top: 15px; font-size: 13px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <p><strong>Alumno:</strong> ${student.name}</p>
+                    <p><strong>Grupo:</strong> ${student.group}</p>
+                    <p><strong>Edad:</strong> ${student.age} años</p>
+                    <p><strong>Género:</strong> ${student.gender === 'female' ? 'Femenino' : 'Masculino'}</p>
+                    <p><strong>Ciclo Escolar:</strong> ${year}</p>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+                    <div>
+                        <h2 style="font-size: 16px; font-weight: 600; color: #003356; margin-bottom: 8px;">Resultados y Calificaciones</h2>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                            <thead style="background-color: #f2f2f2;">
+                                <tr>
+                                    <th style="padding: 6px; text-align: left;">Prueba</th>
+                                    <th style="padding: 6px; text-align: center;">Marca</th>
+                                    <th style="padding: 6px; text-align: center;">Cal.</th>
+                                </tr>
+                            </thead>
+                            <tbody>${resultsHtml}</tbody>
+                        </table>
+                        <p style="text-align: center; font-size: 18px; font-weight: bold; margin-top: 15px; color: #003356;">Calificación Final: ${student.finalGrade ? student.finalGrade.toFixed(2) : '0.00'}</p>
+                    </div>
+                    <div>
+                        <h2 style="font-size: 16px; font-weight: 600; color: #003356; margin-bottom: 8px;">Diagrama de Rendimiento</h2>
+                        <canvas id="pdf-chart" width="350" height="250"></canvas>
+                        ${student.observation ? `
+                            <div style="margin-top: 15px; padding: 10px; background: #f9fafb; border-left: 3px solid #003356;">
+                                <strong style="font-size: 12px; color: #003356;">Observaciones:</strong>
+                                <p style="font-size: 12px; font-style: italic; margin-top: 4px;">“${student.observation}”</p>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(reportElement);
+
+            const chartCanvas = document.getElementById('pdf-chart');
+            new Chart(chartCanvas, {
+                type: 'radar',
+                data: {
+                    labels: ['Velocidad', 'Resistencia', 'Salto Vert.', 'Salto Horiz.', 'Abdom.', 'Plancha', 'Flexib.'],
+                    datasets: [{
+                        label: 'Calificación',
+                        data: Object.values(studentGrades),
+                        backgroundColor: 'rgba(0, 51, 86, 0.2)',
+                        borderColor: 'rgba(0, 51, 86, 1)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    animation: {
+                        onComplete: () => {
+                            html2canvas(reportElement, { scale: 2 }).then(canvas => {
+                                const imgData = canvas.toDataURL('image/png');
+                                const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+                                pdf.addImage(imgData, 'PNG', 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
+                                pdf.save(`informe_${student.name.replace(/ /g, '_')}_${year}.pdf`);
+                                document.body.removeChild(reportElement);
+                                showNotification("Informe PDF descargado correctamente.", true);
+                            });
+                        }
+                    },
+                    scales: { r: { beginAtZero: true, max: 10 } }
+                }
+            });
+        };
+
+        // CSV EXPORT
+        const exportToCsv = () => {
+            const groupFilter = document.getElementById('group-filter-table').value;
+            let dataToExport = studentsData;
+            if (groupFilter) dataToExport = studentsData.filter(s => s.group === groupFilter);
+
+            if (dataToExport.length === 0) {
+                showNotification("No hay datos para exportar.", false);
+                return;
+            }
+
+            const csvData = dataToExport.map(student => {
+                const row = {
+                    Nombre: student.name,
+                    Edad: student.age,
+                    Genero: student.gender,
+                    Grupo: student.group,
+                };
+                testNames.forEach(test => row[test] = student.tests?.[test] !== undefined ? student.tests[test] : '');
+                row['Calificación Final'] = student.finalGrade ? student.finalGrade.toFixed(2) : '';
+                row['Observaciones'] = student.observation || '';
+                return row;
+            });
+
+            const csv = Papa.unparse(csvData);
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const year = document.getElementById('year-selector').value;
+            link.href = URL.createObjectURL(blob);
+            link.download = `alumnos_${year}${groupFilter ? '_' + groupFilter : ''}.csv`;
+            link.click();
+            showNotification("Archivo exportado correctamente.", true);
+        };
+
+        // SETUP EVENT LISTENERS
+        const setupEventListeners = () => {
+            document.getElementById('year-selector').addEventListener('change', () => loadStudents());
+
+            document.getElementById('add-new-year-btn').addEventListener('click', () => {
+                const newYr = prompt("Ingresa el nuevo año o ciclo escolar (ej. 2027):");
+                if (newYr && newYr.trim()) {
+                    const sel = document.getElementById('year-selector');
+                    const cleanYr = newYr.trim();
+                    if (![...sel.options].some(o => o.value === cleanYr)) {
+                        const opt = document.createElement('option');
+                        opt.value = cleanYr;
+                        opt.textContent = cleanYr;
+                        opt.selected = true;
+                        sel.appendChild(opt);
+                    } else {
+                        sel.value = cleanYr;
+                    }
+                    loadStudents();
+                }
+            });
+
+            document.getElementById('logout-btn').addEventListener('click', async () => {
+                try { await signOut(auth); } catch (e) { console.error(e); }
+            });
+
+            // Table Filter & Search
+            document.getElementById('group-filter-table').addEventListener('change', renderStudentsTable);
+            document.getElementById('search-student-table').addEventListener('input', renderStudentsTable);
+
+            // Table Delegated Events
+            document.getElementById('students-table-body').addEventListener('click', (e) => {
+                if (e.target.classList.contains('edit-observation-btn')) {
+                    const studentId = e.target.dataset.id;
+                    const student = studentsData.find(s => s.id === studentId);
+                    if (student) {
+                        const obs = prompt("Editar observación del alumno:", student.observation || "");
+                        if (obs !== null) saveObservation(studentId, obs);
+                    }
+                } else if (e.target.classList.contains('generate-report-btn')) {
+                    generateStudentReport(e.target.dataset.id);
+                }
+            });
+
+            document.getElementById('students-table-body').addEventListener('change', (e) => {
+                if (e.target.tagName === 'INPUT') {
+                    const row = e.target.closest('tr');
+                    saveStudentScore(row.dataset.id, e.target.dataset.testName, e.target.value);
+                }
+            });
+
+            // Export CSV button
+            document.getElementById('export-csv-btn').addEventListener('click', exportToCsv);
+
+            // Excel Dropzone events
+            const dropZone = document.getElementById('drop-zone');
+            const fileInput = document.getElementById('excel-file-input');
+
+            dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-blue-400'); });
+            dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-blue-400'));
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('border-blue-400');
+                if (e.dataTransfer.files.length > 0) handleFileUpload(e.dataTransfer.files[0]);
+            });
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) handleFileUpload(e.target.files[0]);
+            });
+
+            document.getElementById('confirm-import-btn').addEventListener('click', confirmImportToFirestore);
+            document.getElementById('cancel-import-btn').addEventListener('click', () => {
+                document.getElementById('upload-preview-container').classList.add('hidden');
+                parsedExcelData = [];
+            });
+
+            // Report filters
+            document.getElementById('apply-report-filters-btn').addEventListener('click', renderReports);
+
+            // History select
+            document.getElementById('history-student-select').addEventListener('change', renderHistoryTab);
+        };
+
+        await setupFirebase();
+        setupEventListeners();
+
+    </script>
+</body>
+</html>
