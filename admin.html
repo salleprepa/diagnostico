@@ -1072,10 +1072,12 @@
                 options: {
                     animation: {
                         onComplete: () => {
-                            html2canvas(reportElement, { scale: 2 }).then(canvas => {
+                            html2canvas(reportElement, { scale: 2, useCORS: true }).then(canvas => {
                                 const imgData = canvas.toDataURL('image/png');
                                 const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-                                pdf.addImage(imgData, 'PNG', 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
+                                const imgWidth = 210;
+                                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                                pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
                                 pdf.save(`informe_${student.name.replace(/ /g, '_')}_${year}.pdf`);
                                 document.body.removeChild(reportElement);
                                 showNotification("Informe PDF descargado correctamente.", true);
@@ -1235,14 +1237,30 @@
             `;
             document.body.appendChild(reportElement);
 
-            html2canvas(reportElement, { scale: 2 }).then(canvas => {
+            html2canvas(reportElement, { scale: 2, useCORS: true }).then(canvas => {
                 const imgData = canvas.toDataURL('image/png');
                 const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-                pdf.addImage(imgData, 'PNG', 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
+                
+                const imgWidth = 210; // Standard A4 width in mm
+                const pageHeight = 297; // Standard A4 height in mm
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                let heightLeft = imgHeight;
+                let position = 0;
+
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+
+                while (heightLeft > 0) {
+                    position = heightLeft - imgHeight;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+                }
+
                 const scopeName = groupFilter ? `_Grupo_${groupFilter}` : '_General';
                 pdf.save(`Reporte_Ejecutivo_Direccion_${year}${scopeName}.pdf`);
                 document.body.removeChild(reportElement);
-                showNotification("Reporte Ejecutivo para Dirección generado con éxito.", true);
+                showNotification("Reporte Ejecutivo en PDF (Multipágina) generado con éxito.", true);
             });
         };
 
