@@ -517,6 +517,8 @@
                         student.tests = resultData.tests || {};
                         student.finalGrade = resultData.finalGrade || 0;
                         student.observation = resultData.observation || '';
+                        if (resultData.group) student.group = resultData.group;
+                        if (resultData.age) student.age = resultData.age;
                     } else {
                         student.tests = {};
                         student.finalGrade = 0;
@@ -760,12 +762,9 @@
                         await setDoc(newDocRef, { name: item.name, group: item.group, age: item.age, gender: item.gender });
                     }
 
-                    // Initialize results for the active year
+                    // Initialize or update results for the active year with year-specific group & age
                     const resultRef = doc(db, `/artifacts/${__app_id}/public/data/students/${studentId}/results/${year}`);
-                    const resultSnap = await getDoc(resultRef);
-                    if (!resultSnap.exists()) {
-                        await setDoc(resultRef, { tests: {}, finalGrade: 0, observation: '' });
-                    }
+                    await setDoc(resultRef, { group: item.group, age: item.age }, { merge: true });
                 }
 
                 showNotification("¡Importación masiva completada con éxito!", true);
